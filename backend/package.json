@@ -16,7 +16,8 @@
     "import:providers": "node scripts/import-real-providers.js",
     "seed:providers": "node scripts/seed-24-providers.js && node scripts/import-real-providers.js && node scripts/seed-feed-content.js",
     "bundle:data": "node scripts/bundle-deploy-data.js",
-    "migrate:supabase": "node scripts/migrate-to-supabase.js"
+    "migrate:supabase": "node scripts/migrate-to-supabase.js",
+    "setup:production": "node scripts/setup-production.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.108.2",
