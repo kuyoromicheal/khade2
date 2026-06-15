@@ -29,6 +29,24 @@ const TABLE_MAP = {
 const TABLES = Object.keys(TABLE_MAP);
 const COUNTERS_TABLE = 'khade_counters';
 
+function isMissingTableError(error) {
+  const msg = error?.message || '';
+  return error?.code === 'PGRST205' || msg.includes('Could not find the table') || msg.includes('does not exist');
+}
+
+async function loadTable(client, key) {
+  const table = TABLE_MAP[key];
+  const { data: rows, error } = await client.from(table).select('*');
+  if (error) {
+    if (isMissingTableError(error)) {
+      console.warn(`Supabase: ${table} missing — using []. Run backend/supabase/phase2-full.sql in SQL Editor.`);
+      return [];
+    }
+    throw new Error(`Supabase load ${table}: ${error.message}`);
+  }
+  return rows || [];
+}
+
 const empty = {
   categories: [],
   users: [],
@@ -61,18 +79,23 @@ async function load() {
 
   await Promise.all(
     TABLES.map(async (key) => {
-      const table = TABLE_MAP[key];
-      const { data: rows, error } = await client.from(table).select('*');
-      if (error) throw new Error(`Supabase load ${table}: ${error.message}`);
-      data[key] = rows || [];
+      data[key] = await loadTable(client, key);
     }),
   );
 
   const { data: counterRows, error: counterErr } = await client.from(COUNTERS_TABLE).select('*');
-  if (counterErr) throw new Error(`Supabase load counters: ${counterErr.message}`);
-  data._counters = {};
-  for (const row of counterRows || []) {
-    data._counters[row.table_name] = row.value;
+  if (counterErr) {
+    if (isMissingTableError(counterErr)) {
+      console.warn(`Supabase: ${COUNTERS_TABLE} missing — counters start at 0. Run backend/supabase/schema.sql.`);
+      data._counters = {};
+    } else {
+      throw new Error(`Supabase load counters: ${counterErr.message}`);
+    }
+  } else {
+    data._counters = {};
+    for (const row of counterRows || []) {
+      data._counters[row.table_name] = row.value;
+    }
   }
 
   return data;
@@ -86,7 +109,13 @@ async function save(data) {
     if (!rows || rows.length === 0) continue;
     const table = TABLE_MAP[key];
     const { error } = await client.from(table).upsert(rows, { onConflict: 'id' });
-    if (error) throw new Error(`Supabase save ${table}: ${error.message}`);
+    if (error) {
+      if (isMissingTableError(error)) {
+        console.warn(`Supabase: skip save to ${table} — table missing. Run phase2-full.sql.`);
+        continue;
+      }
+      throw new Error(`Supabase save ${table}: ${error.message}`);
+    }
   }
 
   const counters = Object.entries(data._counters || {}).map(([table_name, value]) => ({
