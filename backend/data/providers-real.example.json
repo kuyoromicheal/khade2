@@ -1,0 +1,35 @@
+[
+  {
+    "name": "Fade House Abuja",
+    "category_slug": "barbing",
+    "area": "Wuse II",
+    "phone": "+2348012345678",
+    "price_from": 4000,
+    "rating": 4.8,
+    "review_count": 24,
+    "verified": true,
+    "featured": true,
+    "badge": "🔥 Popular",
+    "services": [
+      { "name": "Classic Cut", "duration": "30 mins", "price": 4000 },
+      { "name": "Fade + Beard", "duration": "45 mins", "price": 5500 },
+      { "name": "Kids Cut", "duration": "25 mins", "price": 3000 }
+    ]
+  },
+  {
+    "name": "Glam Nails Studio",
+    "category_slug": "nails",
+    "area": "Maitama",
+    "phone": "+2348098765432",
+    "price_from": 6000,
+    "rating": 4.9,
+    "review_count": 18,
+    "verified": true,
+    "featured": true,
+    "services": [
+      { "name": "Gel Manicure", "duration": "60 mins", "price": 6000 },
+      { "name": "Acrylic Full Set", "duration": "90 mins", "price": 12000 },
+      { "name": "Pedicure", "duration": "45 mins", "price": 5000 }
+    ]
+  }
+]

@@ -1,0 +1,8 @@
+node_modules/
+.env
+.env.*
+!.env.example
+
+# Local overrides only — production bundle uses khade.deploy.json
+data/khade.json
+data/*.local.json

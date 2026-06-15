@@ -1,0 +1,26 @@
+{
+  "name": "khade-backend",
+  "version": "1.0.0",
+  "description": "Khade beauty platform REST API",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "seed": "node src/seed.js",
+    "generate": "node src/generate-data.js",
+    "export-bootstrap": "node src/export-bootstrap-file.js",
+    "build:videos": "node scripts/build-video-catalog.js",
+    "build:catalog": "node scripts/build-pexels-catalog.js",
+    "supplement:catalog": "node scripts/supplement-catalog.js",
+    "rescan:videos": "node scripts/rescan-video-catalog.js",
+    "import:providers": "node scripts/import-real-providers.js",
+    "bundle:data": "node scripts/bundle-deploy-data.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.21.2"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

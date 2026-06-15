@@ -1,0 +1,2216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#2d5c3f">
+  <meta name="description" content="Luxury beauty & wellness services delivered to you, anywhere in Nigeria">
+  <title>Khade — Beauty On Demand</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=DM+Sans:wght@300;400;500&display=swap');
+  
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    height: 100%;
+    overflow: hidden;
+    -webkit-tap-highlight-color: transparent;
+    overscroll-behavior: none;
+    touch-action: manipulation;
+  }
+  
+  :root {
+    --matcha: #4a7c59;
+    --matcha-light: #6a9e77;
+    --matcha-pale: #e8f0ea;
+    --matcha-deep: #2d5c3f;
+    --gold: #c9a84c;
+    --gold-light: #e8d5a3;
+    --cream: #faf8f4;
+    --dark: #1a1a1a;
+    --mid: #555;
+    --soft: #888;
+    --border: #e8e4dc;
+    --white: #ffffff;
+  }
+  
+  #app {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--cream);
+    min-height: 100%;
+    height: 100%;
+    display: flex;
+    align-items: stretch;
+    justify-content: stretch;
+    padding: 0;
+  }
+  
+  .phone {
+    width: 100%;
+    max-width: 100%;
+    height: 100%;
+    min-height: 100dvh;
+    background: var(--cream);
+    border-radius: 0;
+    overflow: hidden;
+    position: relative;
+    border: none;
+    box-shadow: none;
+  }
+  
+  .screen {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    display: none;
+    flex-direction: column;
+    background: var(--cream);
+  }
+  
+  .screen.active { display: flex; }
+  
+  .scroll-body {
+    overflow-y: auto;
+    flex: 1;
+    scrollbar-width: none;
+  }
+  .scroll-body::-webkit-scrollbar { display: none; }
+
+  .status-bar {
+    background: transparent;
+    padding: 14px 24px 6px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--dark);
+    flex-shrink: 0;
+  }
+  
+  .nav-tabs {
+    display: flex;
+    background: var(--white);
+    border-top: 1px solid var(--border);
+    padding: 8px 0 calc(12px + env(safe-area-inset-bottom, 0px));
+    flex-shrink: 0;
+  }
+  
+  .nav-tab {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    cursor: pointer;
+    border: none;
+    background: none;
+    padding: 4px;
+  }
+  
+  .nav-tab i { font-size: 20px; color: #bbb; }
+  .nav-tab.active i { color: var(--matcha); }
+  .nav-tab span { font-size: 9px; color: #bbb; font-family: 'DM Sans'; }
+  .nav-tab.active span { color: var(--matcha); }
+  
+  .serif { font-family: 'Cormorant Garamond', serif; }
+  
+  /* SPLASH */
+  #splash {
+    background: var(--matcha-deep);
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+  }
+  
+  .splash-logo {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 52px;
+    font-weight: 300;
+    color: var(--cream);
+    letter-spacing: 6px;
+  }
+  
+  .splash-tagline {
+    font-size: 11px;
+    color: rgba(250,248,244,0.6);
+    letter-spacing: 3px;
+    text-transform: uppercase;
+  }
+  
+  .splash-line {
+    width: 40px;
+    height: 1px;
+    background: var(--gold);
+    margin: 8px auto;
+  }
+  
+  .splash-btn {
+    margin-top: 40px;
+    background: var(--gold);
+    color: var(--dark);
+    border: none;
+    padding: 14px 48px;
+    border-radius: 30px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    letter-spacing: 1px;
+  }
+
+  /* HOME */
+  .home-header {
+    background: var(--white);
+    padding: 16px 20px 14px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+
+  .home-greeting {
+    font-size: 11px;
+    color: var(--soft);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-bottom: 2px;
+  }
+
+  .home-name {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 24px;
+    font-weight: 400;
+    color: var(--dark);
+  }
+
+  .search-bar {
+    background: var(--cream);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 10px 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 12px 20px;
+    flex-shrink: 0;
+  }
+
+  .search-bar i { color: var(--soft); font-size: 16px; }
+  .search-bar span { font-size: 13px; color: #bbb; }
+
+  .location-pill {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin: 0 20px 12px;
+    font-size: 11px;
+    color: var(--matcha);
+    cursor: pointer;
+  }
+
+  .location-pill i { font-size: 13px; }
+
+  .section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: 0 20px;
+    margin-bottom: 12px;
+    margin-top: 20px;
+  }
+
+  .section-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 20px;
+    font-weight: 400;
+    color: var(--dark);
+  }
+
+  .see-all {
+    font-size: 11px;
+    color: var(--matcha);
+    cursor: pointer;
+    border: none;
+    background: none;
+    font-family: 'DM Sans';
+  }
+
+  .categories-scroll {
+    display: flex;
+    gap: 10px;
+    padding: 0 20px 4px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    flex-shrink: 0;
+  }
+  .categories-scroll::-webkit-scrollbar { display: none; }
+
+  .cat-chip {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+
+  .cat-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 16px;
+    background: var(--white);
+    border: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+  }
+
+  .cat-chip.active .cat-icon {
+    background: var(--matcha);
+    border-color: var(--matcha);
+  }
+
+  .cat-label { font-size: 10px; color: var(--mid); text-align: center; max-width: 60px; }
+  .cat-chip.active .cat-label { color: var(--matcha); font-weight: 500; }
+
+  .promo-banner {
+    margin: 16px 20px;
+    background: var(--matcha-deep);
+    border-radius: 16px;
+    padding: 20px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .promo-tag {
+    font-size: 10px;
+    color: var(--gold);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+
+  .promo-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 22px;
+    color: var(--cream);
+    font-weight: 300;
+    margin-bottom: 12px;
+    line-height: 1.2;
+  }
+
+  .promo-btn {
+    background: var(--gold);
+    color: var(--dark);
+    border: none;
+    padding: 8px 18px;
+    border-radius: 20px;
+    font-size: 11px;
+    cursor: pointer;
+    font-family: 'DM Sans';
+    font-weight: 500;
+  }
+
+  .promo-deco {
+    position: absolute;
+    right: -10px;
+    top: -10px;
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.05);
+  }
+
+  .provider-card {
+    margin: 0 20px 12px;
+    background: var(--white);
+    border-radius: 16px;
+    border: 1px solid var(--border);
+    overflow: hidden;
+    cursor: pointer;
+  }
+
+  .provider-img {
+    height: 140px;
+    background: linear-gradient(135deg, #e8f0ea 0%, #d4e6d8 100%);
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+
+  .provider-img-emoji { font-size: 48px; }
+
+  .provider-badge {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: var(--gold);
+    color: var(--dark);
+    font-size: 9px;
+    padding: 3px 8px;
+    border-radius: 10px;
+    font-weight: 500;
+  }
+
+  .provider-fav {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    background: rgba(255,255,255,0.9);
+    border-radius: 50%;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    border: none;
+  }
+
+  .provider-fav i { font-size: 14px; color: #ccc; }
+  .provider-fav.liked i { color: #e74c3c; }
+
+  .provider-info { padding: 12px 14px; }
+
+  .provider-name {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 17px;
+    font-weight: 400;
+    color: var(--dark);
+    margin-bottom: 4px;
+  }
+
+  .provider-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .provider-category { font-size: 11px; color: var(--matcha); }
+
+  .provider-rating {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 11px;
+    color: var(--mid);
+  }
+
+  .provider-rating i { font-size: 10px; color: var(--gold); }
+
+  .provider-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--border);
+  }
+
+  .provider-dist { font-size: 10px; color: var(--soft); }
+  .provider-price { font-size: 12px; color: var(--dark); font-weight: 500; }
+
+  /* HORIZONTAL SCROLL CARDS */
+  .h-scroll {
+    display: flex;
+    gap: 12px;
+    padding: 0 20px 4px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .h-scroll::-webkit-scrollbar { display: none; }
+
+  .feat-card {
+    flex-shrink: 0;
+    width: 200px;
+    background: var(--white);
+    border-radius: 14px;
+    border: 1px solid var(--border);
+    overflow: hidden;
+    cursor: pointer;
+  }
+
+  .feat-card-img {
+    height: 110px;
+    background: linear-gradient(135deg, #e8f0ea, #c8dece);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 36px;
+  }
+
+  .feat-card-body { padding: 10px 12px; }
+  .feat-card-name { font-family: 'Cormorant Garamond', serif; font-size: 14px; color: var(--dark); margin-bottom: 2px; }
+  .feat-card-sub { font-size: 10px; color: var(--soft); }
+  .feat-card-price { font-size: 12px; color: var(--matcha); font-weight: 500; margin-top: 4px; }
+
+  /* BOOKING */
+  .booking-header {
+    background: var(--white);
+    padding: 20px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+
+  .back-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    border: none;
+    background: none;
+    font-size: 13px;
+    color: var(--matcha);
+    cursor: pointer;
+    margin-bottom: 12px;
+    font-family: 'DM Sans';
+  }
+
+  .booking-provider-name {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 26px;
+    color: var(--dark);
+    margin-bottom: 4px;
+  }
+
+  .stars { display: flex; gap: 2px; }
+  .stars i { font-size: 12px; color: var(--gold); }
+
+  .booking-img {
+    height: 160px;
+    background: linear-gradient(135deg, #e8f0ea 0%, #c8dece 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 56px;
+    flex-shrink: 0;
+  }
+
+  .booking-section {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .booking-section-title {
+    font-size: 11px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--soft);
+    margin-bottom: 12px;
+  }
+
+  .service-option {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 0;
+    cursor: pointer;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .service-option:last-child { border-bottom: none; }
+
+  .service-opt-name { font-size: 13px; color: var(--dark); }
+  .service-opt-dur { font-size: 11px; color: var(--soft); margin-top: 2px; }
+  .service-opt-price { font-size: 13px; font-weight: 500; color: var(--matcha); }
+
+  .service-radio {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 2px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 10px;
+    flex-shrink: 0;
+  }
+
+  .service-radio.selected { border-color: var(--matcha); }
+  .service-radio.selected::after {
+    content: '';
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--matcha);
+  }
+
+  .location-toggle {
+    display: flex;
+    background: var(--cream);
+    border-radius: 10px;
+    padding: 3px;
+    gap: 3px;
+  }
+
+  .loc-btn {
+    flex: 1;
+    padding: 8px;
+    border: none;
+    border-radius: 8px;
+    font-size: 12px;
+    cursor: pointer;
+    background: transparent;
+    color: var(--soft);
+    font-family: 'DM Sans';
+    transition: all 0.2s;
+  }
+
+  .loc-btn.active {
+    background: var(--matcha);
+    color: white;
+  }
+
+  .time-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin-top: 10px;
+  }
+
+  .time-slot {
+    padding: 9px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    text-align: center;
+    font-size: 12px;
+    color: var(--mid);
+    cursor: pointer;
+    background: var(--white);
+  }
+
+  .time-slot.selected {
+    background: var(--matcha);
+    color: white;
+    border-color: var(--matcha);
+  }
+
+  .time-slot.unavailable {
+    background: var(--cream);
+    color: #ccc;
+    cursor: not-allowed;
+  }
+
+  .date-row {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .date-row::-webkit-scrollbar { display: none; }
+
+  .date-chip {
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    cursor: pointer;
+    background: var(--white);
+    min-width: 48px;
+  }
+
+  .date-chip.selected { background: var(--matcha); border-color: var(--matcha); }
+  .date-chip .day { font-size: 10px; color: var(--soft); }
+  .date-chip.selected .day { color: rgba(255,255,255,0.8); }
+  .date-chip .num { font-size: 16px; font-weight: 500; color: var(--dark); }
+  .date-chip.selected .num { color: white; }
+
+  .book-cta {
+    padding: 16px 20px;
+    background: var(--white);
+    border-top: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+
+  .book-total {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 12px;
+  }
+
+  .book-total-label { font-size: 12px; color: var(--soft); }
+  .book-total-price { font-family: 'Cormorant Garamond', serif; font-size: 20px; color: var(--dark); }
+
+  .primary-btn {
+    width: 100%;
+    padding: 14px;
+    background: var(--matcha);
+    color: white;
+    border: none;
+    border-radius: 14px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    font-family: 'DM Sans';
+  }
+
+  .primary-btn:active { opacity: 0.9; }
+
+  /* PAYMENT */
+  .payment-screen .scroll-body { padding: 0 20px; }
+
+  .pay-option {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px;
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    cursor: pointer;
+    margin-bottom: 10px;
+  }
+
+  .pay-option.selected { border-color: var(--matcha); background: var(--matcha-pale); }
+  .pay-icon { font-size: 22px; width: 36px; text-align: center; }
+  .pay-label { font-size: 13px; color: var(--dark); font-weight: 500; }
+  .pay-sub { font-size: 11px; color: var(--soft); }
+  .pay-check { margin-left: auto; color: var(--matcha); }
+
+  /* TRACKING */
+  .map-placeholder {
+    height: 220px;
+    background: linear-gradient(160deg, #d8e8db 0%, #b8d4be 40%, #9ec4a6 100%);
+    position: relative;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+
+  .map-grid {
+    position: absolute;
+    inset: 0;
+    opacity: 0.3;
+  }
+
+  .map-pin {
+    position: absolute;
+    font-size: 28px;
+    transform: translate(-50%, -100%);
+  }
+
+  .track-card {
+    background: var(--white);
+    border-radius: 20px 20px 0 0;
+    padding: 20px;
+    margin-top: -20px;
+    position: relative;
+    z-index: 2;
+    flex: 1;
+  }
+
+  .track-progress {
+    display: flex;
+    justify-content: space-between;
+    position: relative;
+    margin: 20px 0;
+  }
+
+  .track-line {
+    position: absolute;
+    top: 12px;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: var(--border);
+  }
+
+  .track-line-fill {
+    position: absolute;
+    top: 12px;
+    left: 0;
+    height: 2px;
+    background: var(--matcha);
+    width: 66%;
+  }
+
+  .track-step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    z-index: 1;
+  }
+
+  .track-dot {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .track-dot.done { background: var(--matcha); }
+  .track-dot.done i { font-size: 12px; color: white; }
+  .track-dot.active { background: var(--matcha-deep); border: 3px solid var(--matcha); }
+  .track-step-label { font-size: 9px; color: var(--soft); text-align: center; max-width: 60px; }
+
+  .provider-arrive {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px;
+    background: var(--matcha-pale);
+    border-radius: 12px;
+    border: 1px solid rgba(74,124,89,0.2);
+    margin: 16px 0;
+  }
+
+  .arrive-avatar {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    background: var(--matcha);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+
+  .arrive-name { font-size: 13px; font-weight: 500; color: var(--dark); }
+  .arrive-eta { font-size: 11px; color: var(--matcha); }
+  .arrive-chat { margin-left: auto; color: var(--matcha); font-size: 20px; cursor: pointer; }
+
+  /* PROFILE FEED */
+  .feed-post {
+    background: var(--white);
+    border-radius: 16px;
+    border: 1px solid var(--border);
+    margin: 0 20px 16px;
+    overflow: hidden;
+  }
+
+  .feed-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 14px;
+  }
+
+  .feed-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--matcha-pale);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    border: 1px solid rgba(74,124,89,0.2);
+  }
+
+  .feed-provider-name { font-size: 13px; font-weight: 500; color: var(--dark); }
+  .feed-provider-cat { font-size: 10px; color: var(--matcha); }
+  .feed-book-btn {
+    margin-left: auto;
+    background: var(--matcha);
+    color: white;
+    border: none;
+    padding: 5px 12px;
+    border-radius: 8px;
+    font-size: 11px;
+    cursor: pointer;
+    font-family: 'DM Sans';
+  }
+
+  .feed-img {
+    height: 200px;
+    background: linear-gradient(135deg, #e8f0ea, #c8dece);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 64px;
+    position: relative;
+  }
+
+  .feed-img-badge {
+    position: absolute;
+    bottom: 10px;
+    right: 10px;
+    background: rgba(0,0,0,0.5);
+    color: white;
+    font-size: 10px;
+    padding: 3px 8px;
+    border-radius: 8px;
+  }
+
+  .feed-actions {
+    display: flex;
+    gap: 16px;
+    padding: 10px 14px;
+    border-top: 1px solid var(--border);
+  }
+
+  .feed-action {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 12px;
+    color: var(--soft);
+    border: none;
+    background: none;
+    cursor: pointer;
+    font-family: 'DM Sans';
+  }
+
+  .feed-action.liked { color: #e74c3c; }
+  .feed-action.liked i { color: #e74c3c; }
+
+  .feed-caption {
+    padding: 8px 14px 12px;
+    font-size: 12px;
+    color: var(--mid);
+    line-height: 1.5;
+  }
+
+  /* HISTORY */
+  .history-card {
+    margin: 0 20px 12px;
+    background: var(--white);
+    border-radius: 14px;
+    border: 1px solid var(--border);
+    padding: 14px;
+  }
+
+  .history-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 10px;
+  }
+
+  .history-name { font-family: 'Cormorant Garamond', serif; font-size: 16px; color: var(--dark); }
+  .history-date { font-size: 10px; color: var(--soft); margin-top: 2px; }
+
+  .status-badge {
+    font-size: 10px;
+    padding: 3px 8px;
+    border-radius: 8px;
+  }
+
+  .status-badge.completed { background: #e8f5e9; color: #2e7d32; }
+  .status-badge.upcoming { background: var(--matcha-pale); color: var(--matcha-deep); }
+  .status-badge.cancelled { background: #fce4ec; color: #c62828; }
+
+  .history-service { font-size: 12px; color: var(--mid); margin-bottom: 8px; }
+  .history-footer { display: flex; justify-content: space-between; align-items: center; }
+  .history-price { font-size: 14px; font-weight: 500; color: var(--dark); }
+
+  .rebook-btn {
+    background: transparent;
+    border: 1px solid var(--matcha);
+    color: var(--matcha);
+    padding: 5px 12px;
+    border-radius: 8px;
+    font-size: 11px;
+    cursor: pointer;
+    font-family: 'DM Sans';
+  }
+
+  /* ADMIN */
+  .admin-stat-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    padding: 0 20px;
+    margin-bottom: 16px;
+  }
+
+  .admin-stat {
+    background: var(--white);
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    padding: 14px;
+  }
+
+  .admin-stat-label { font-size: 10px; color: var(--soft); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
+  .admin-stat-value { font-family: 'Cormorant Garamond', serif; font-size: 24px; color: var(--dark); }
+  .admin-stat-change { font-size: 10px; color: #2e7d32; margin-top: 2px; }
+
+  .admin-revenue-bar {
+    padding: 0 20px;
+    margin-bottom: 16px;
+  }
+
+  .revenue-bar-track {
+    height: 8px;
+    background: var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+    margin: 8px 0;
+  }
+
+  .revenue-bar-fill {
+    height: 100%;
+    background: var(--matcha);
+    border-radius: 4px;
+  }
+
+  /* PROVIDER DASHBOARD */
+  .provider-header {
+    background: var(--matcha-deep);
+    padding: 20px;
+    color: white;
+    flex-shrink: 0;
+  }
+
+  .provider-dash-name { font-family: 'Cormorant Garamond', serif; font-size: 22px; color: white; margin-bottom: 2px; }
+  .provider-dash-sub { font-size: 11px; color: rgba(255,255,255,0.6); }
+
+  .provider-stat-row {
+    display: flex;
+    gap: 8px;
+    margin-top: 16px;
+  }
+
+  .provider-stat {
+    flex: 1;
+    background: rgba(255,255,255,0.1);
+    border-radius: 10px;
+    padding: 10px;
+    text-align: center;
+  }
+
+  .provider-stat-num { font-size: 20px; font-weight: 500; color: white; }
+  .provider-stat-lbl { font-size: 9px; color: rgba(255,255,255,0.6); margin-top: 2px; }
+
+  .upcoming-appt {
+    margin: 0 20px 10px;
+    background: var(--white);
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    padding: 12px 14px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .appt-time-col {
+    text-align: center;
+    min-width: 50px;
+    padding-right: 12px;
+    border-right: 1px solid var(--border);
+  }
+
+  .appt-time { font-size: 14px; font-weight: 500; color: var(--matcha); }
+  .appt-am { font-size: 10px; color: var(--soft); }
+  .appt-client { font-size: 13px; font-weight: 500; color: var(--dark); }
+  .appt-service { font-size: 11px; color: var(--soft); }
+  .appt-loc { font-size: 10px; color: var(--matcha); margin-top: 2px; }
+  .appt-price { margin-left: auto; font-size: 14px; font-weight: 500; color: var(--dark); }
+
+  .view-switcher {
+    display: flex;
+    margin: 0 20px 16px;
+    background: var(--cream);
+    border-radius: 10px;
+    padding: 3px;
+  }
+
+  .view-btn {
+    flex: 1;
+    padding: 7px;
+    text-align: center;
+    font-size: 12px;
+    border: none;
+    background: none;
+    cursor: pointer;
+    border-radius: 8px;
+    color: var(--soft);
+    font-family: 'DM Sans';
+  }
+
+  .view-btn.active { background: var(--white); color: var(--dark); font-weight: 500; }
+
+  /* Desktop preview: show phone frame when not in native app */
+  @media (min-width: 420px) and (min-height: 820px) {
+    body:not(.native-app) {
+      background: #f5f3ef;
+    }
+    body:not(.native-app) #app {
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      background: #f5f3ef;
+    }
+    body:not(.native-app) .phone {
+      width: 375px;
+      height: 780px;
+      min-height: 780px;
+      border-radius: 40px;
+      border: 2px solid #d4d0c8;
+      box-shadow: 0 40px 80px rgba(0,0,0,0.15);
+    }
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="phone">
+
+    <!-- SPLASH -->
+    <div class="screen active" id="splash" data-screen="splash">
+      <div class="promo-deco"></div>
+      <div style="text-align:center; padding: 40px 30px;">
+        <div style="width:70px;height:70px;border-radius:20px;background:rgba(255,255,255,0.15);margin:0 auto 28px;display:flex;align-items:center;justify-content:center;">
+          <span style="font-size:32px;">✦</span>
+        </div>
+        <div class="splash-logo">khade</div>
+        <div class="splash-line"></div>
+        <div class="splash-tagline">your beauty, on demand</div>
+        <p style="font-size:12px;color:rgba(250,248,244,0.45);margin-top:16px;line-height:1.6;">Luxury beauty & wellness services<br>delivered to you, anywhere in Nigeria</p>
+        <button class="splash-btn" onclick="goTo('home')">Get Started</button>
+        <div style="margin-top:16px;font-size:11px;color:rgba(250,248,244,0.4);cursor:pointer" onclick="goTo('home')">Already have an account? <span style="color:var(--gold)">Sign in</span></div>
+        <div style="margin-top:32px;display:flex;justify-content:center;gap:6px">
+          <div style="width:6px;height:6px;border-radius:50%;background:var(--gold)"></div>
+          <div style="width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,0.2)"></div>
+          <div style="width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,0.2)"></div>
+        </div>
+      </div>
+      <div style="position:absolute;bottom:-60px;right:-60px;width:200px;height:200px;border-radius:50%;background:rgba(255,255,255,0.04)"></div>
+      <div style="position:absolute;bottom:40px;left:-40px;width:140px;height:140px;border-radius:50%;background:rgba(201,168,76,0.08)"></div>
+    </div>
+
+    <!-- HOME -->
+    <div class="screen" id="home" data-screen="home">
+      <div class="home-header">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+          <div>
+            <div class="home-greeting">Good morning</div>
+            <div class="home-name">Adaeze ✨</div>
+          </div>
+          <div style="display:flex;gap:10px;align-items:center">
+            <button style="background:none;border:none;cursor:pointer;position:relative" onclick="goTo('notifications')">
+              <i class="ti ti-bell" style="font-size:22px;color:var(--dark)"></i>
+              <div style="position:absolute;top:0;right:0;width:7px;height:7px;background:#e74c3c;border-radius:50%;border:1.5px solid var(--cream)"></div>
+            </button>
+            <div style="width:34px;height:34px;border-radius:50%;background:var(--matcha);display:flex;align-items:center;justify-content:center;font-size:13px;color:white;font-weight:500;cursor:pointer" onclick="goTo('profile')">AC</div>
+          </div>
+        </div>
+        <div class="location-pill">
+          <i class="ti ti-map-pin"></i>
+          <span>Maitama, Abuja</span>
+          <i class="ti ti-chevron-down" style="font-size:10px"></i>
+        </div>
+      </div>
+
+      <div class="scroll-body">
+        <div class="search-bar" style="margin-top:14px" onclick="goTo('search')">
+          <i class="ti ti-search"></i>
+          <span>Search services, providers...</span>
+        </div>
+
+        <div class="categories-scroll" id="cat-scroll">
+          <div class="cat-chip active" onclick="setCat(this)">
+            <div class="cat-icon">💆</div>
+            <span class="cat-label">All</span>
+          </div>
+          <div class="cat-chip" onclick="setCat(this)">
+            <div class="cat-icon">✂️</div>
+            <span class="cat-label">Barbing</span>
+          </div>
+          <div class="cat-chip" onclick="setCat(this)">
+            <div class="cat-icon">💅</div>
+            <span class="cat-label">Nails</span>
+          </div>
+          <div class="cat-chip" onclick="setCat(this)">
+            <div class="cat-icon">💄</div>
+            <span class="cat-label">Makeup</span>
+          </div>
+          <div class="cat-chip" onclick="setCat(this)">
+            <div class="cat-icon">🧖</div>
+            <span class="cat-label">Spa</span>
+          </div>
+          <div class="cat-chip" onclick="setCat(this)">
+            <div class="cat-icon">💇</div>
+            <span class="cat-label">Hair</span>
+          </div>
+          <div class="cat-chip" onclick="setCat(this)">
+            <div class="cat-icon">🧴</div>
+            <span class="cat-label">Skincare</span>
+          </div>
+          <div class="cat-chip" onclick="setCat(this)">
+            <div class="cat-icon">🪡</div>
+            <span class="cat-label">Braids</span>
+          </div>
+        </div>
+
+        <div class="promo-banner" style="margin-top:16px">
+          <div class="promo-deco"></div>
+          <div class="promo-tag">✦ Limited Offer</div>
+          <div class="promo-title">Your first<br>booking is on us</div>
+          <button class="promo-btn" onclick="goTo('booking')">Book Now →</button>
+          <div style="position:absolute;right:20px;top:50%;transform:translateY(-50%);font-size:52px;opacity:0.3">🌿</div>
+        </div>
+
+        <div class="section-header">
+          <div class="section-title">Featured Near You</div>
+          <button class="see-all" onclick="goTo('explore')">See all</button>
+        </div>
+
+        <div class="h-scroll">
+          <div class="feat-card" onclick="goTo('booking')">
+            <div class="feat-card-img">💅</div>
+            <div class="feat-card-body">
+              <div class="feat-card-name">Glam Nails Studio</div>
+              <div class="feat-card-sub">⭐ 4.9 · 0.8km</div>
+              <div class="feat-card-price">From ₦8,500</div>
+            </div>
+          </div>
+          <div class="feat-card" onclick="goTo('booking')">
+            <div class="feat-card-img" style="background:linear-gradient(135deg,#f0e8f0,#dcc8dc)">💇</div>
+            <div class="feat-card-body">
+              <div class="feat-card-name">Ebun Hair Lounge</div>
+              <div class="feat-card-sub">⭐ 4.8 · 1.2km</div>
+              <div class="feat-card-price">From ₦5,000</div>
+            </div>
+          </div>
+          <div class="feat-card" onclick="goTo('booking')">
+            <div class="feat-card-img" style="background:linear-gradient(135deg,#e8f0f5,#c8d8e8)">🧖</div>
+            <div class="feat-card-body">
+              <div class="feat-card-name">Serenity Spa</div>
+              <div class="feat-card-sub">⭐ 4.7 · 2.1km</div>
+              <div class="feat-card-price">From ₦15,000</div>
+            </div>
+          </div>
+          <div class="feat-card" onclick="goTo('booking')">
+            <div class="feat-card-img" style="background:linear-gradient(135deg,#f5f0e8,#e8d8c8)">✂️</div>
+            <div class="feat-card-body">
+              <div class="feat-card-name">King Cuts Barber</div>
+              <div class="feat-card-sub">⭐ 4.9 · 0.5km</div>
+              <div class="feat-card-price">From ₦3,500</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="section-header">
+          <div class="section-title">Top Providers</div>
+          <button class="see-all" onclick="goTo('explore')">See all</button>
+        </div>
+
+        <div class="provider-card" onclick="goTo('booking')">
+          <div class="provider-img">
+            <span class="provider-img-emoji">💄</span>
+            <div class="provider-badge">✦ Premium</div>
+            <button class="provider-fav" onclick="toggleFav(event, this)">
+              <i class="ti ti-heart"></i>
+            </button>
+          </div>
+          <div class="provider-info">
+            <div class="provider-name">Zara Beauty Studio</div>
+            <div class="provider-meta">
+              <span class="provider-category">Makeup & Glam</span>
+              <span class="provider-rating">
+                <i class="ti ti-star-filled"></i> 4.9 (128 reviews)
+              </span>
+            </div>
+            <div class="provider-footer">
+              <span class="provider-dist"><i class="ti ti-map-pin" style="font-size:10px"></i> 1.4km · Wuse II</span>
+              <span class="provider-price">From ₦12,000</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="provider-card" onclick="goTo('booking')">
+          <div class="provider-img" style="background:linear-gradient(135deg,#f0e8f0,#dcc8dc)">
+            <span class="provider-img-emoji">🧖</span>
+            <div class="provider-badge">✦ Verified</div>
+            <button class="provider-fav" onclick="toggleFav(event, this)">
+              <i class="ti ti-heart"></i>
+            </button>
+          </div>
+          <div class="provider-info">
+            <div class="provider-name">Tranquil Wellness Spa</div>
+            <div class="provider-meta">
+              <span class="provider-category">Spa & Massage</span>
+              <span class="provider-rating">
+                <i class="ti ti-star-filled"></i> 4.8 (94 reviews)
+              </span>
+            </div>
+            <div class="provider-footer">
+              <span class="provider-dist"><i class="ti ti-map-pin" style="font-size:10px"></i> 3.2km · Garki</span>
+              <span class="provider-price">From ₦18,000</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="provider-card" onclick="goTo('booking')">
+          <div class="provider-img" style="background:linear-gradient(135deg,#e8f5e8,#c8e8c8)">
+            <span class="provider-img-emoji">💅</span>
+            <div class="provider-badge">🔥 Popular</div>
+            <button class="provider-fav" onclick="toggleFav(event, this)">
+              <i class="ti ti-heart"></i>
+            </button>
+          </div>
+          <div class="provider-info">
+            <div class="provider-name">Chic Nails by Amaka</div>
+            <div class="provider-meta">
+              <span class="provider-category">Nails & Pedicure</span>
+              <span class="provider-rating">
+                <i class="ti ti-star-filled"></i> 4.7 (203 reviews)
+              </span>
+            </div>
+            <div class="provider-footer">
+              <span class="provider-dist"><i class="ti ti-map-pin" style="font-size:10px"></i> 0.9km · Maitama</span>
+              <span class="provider-price">From ₦7,000</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="section-header">
+          <div class="section-title">Inspiration Feed</div>
+          <button class="see-all" onclick="goTo('feed')">See all</button>
+        </div>
+
+        <div class="feed-post" style="margin-bottom:20px">
+          <div class="feed-header">
+            <div class="feed-avatar">💄</div>
+            <div>
+              <div class="feed-provider-name">Zara Beauty Studio</div>
+              <div class="feed-provider-cat">Makeup · Wuse II</div>
+            </div>
+            <button class="feed-book-btn" onclick="event.stopPropagation();goTo('booking')">Book</button>
+          </div>
+          <div class="feed-img">
+            <span>💫</span>
+            <div class="feed-img-badge">Bridal Look ✦</div>
+          </div>
+          <div class="feed-actions">
+            <button class="feed-action" onclick="toggleLike(this)"><i class="ti ti-heart" style="font-size:16px"></i> 234</button>
+            <button class="feed-action" onclick="goTo('booking')"><i class="ti ti-message-circle" style="font-size:16px"></i> 18</button>
+            <button class="feed-action"><i class="ti ti-share" style="font-size:16px"></i> Share</button>
+          </div>
+          <div class="feed-caption">✨ Bridal glow achieved! Soft glam with a dewy finish — perfect for your big day. Book your slot now! 💍</div>
+        </div>
+        <div style="height:20px"></div>
+      </div>
+
+      <div class="nav-tabs">
+        <button class="nav-tab active" onclick="goTo('home')"><i class="ti ti-home-2"></i><span>Home</span></button>
+        <button class="nav-tab" onclick="goTo('explore')"><i class="ti ti-compass"></i><span>Explore</span></button>
+        <button class="nav-tab" onclick="goTo('appointments')"><i class="ti ti-calendar"></i><span>Bookings</span></button>
+        <button class="nav-tab" onclick="goTo('feed')"><i class="ti ti-layout-grid"></i><span>Feed</span></button>
+        <button class="nav-tab" onclick="goTo('profile')"><i class="ti ti-user-circle"></i><span>Profile</span></button>
+      </div>
+    </div>
+
+    <!-- BOOKING / PROVIDER DETAIL -->
+    <div class="screen" id="booking" data-screen="booking">
+      <div class="booking-header">
+        <button class="back-btn" onclick="goBack()"><i class="ti ti-arrow-left"></i> Back</button>
+        <div class="booking-provider-name">Zara Beauty Studio</div>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:4px">
+          <div class="stars">
+            <i class="ti ti-star-filled"></i><i class="ti ti-star-filled"></i><i class="ti ti-star-filled"></i><i class="ti ti-star-filled"></i><i class="ti ti-star-filled"></i>
+          </div>
+          <span style="font-size:11px;color:var(--soft)">4.9 · 128 reviews · Wuse II, Abuja</span>
+        </div>
+      </div>
+
+      <div class="booking-img">💄</div>
+
+      <div class="scroll-body">
+        <div class="booking-section">
+          <div class="booking-section-title">Choose Service</div>
+          <div class="service-option" onclick="selectService(this, 12000)">
+            <div class="service-radio selected"></div>
+            <div style="flex:1">
+              <div class="service-opt-name">Full Glam Makeup</div>
+              <div class="service-opt-dur">90 mins</div>
+            </div>
+            <div class="service-opt-price">₦12,000</div>
+          </div>
+          <div class="service-option" onclick="selectService(this, 8000)">
+            <div class="service-radio"></div>
+            <div style="flex:1">
+              <div class="service-opt-name">Natural / Everyday Look</div>
+              <div class="service-opt-dur">60 mins</div>
+            </div>
+            <div class="service-opt-price">₦8,000</div>
+          </div>
+          <div class="service-option" onclick="selectService(this, 25000)">
+            <div class="service-radio"></div>
+            <div style="flex:1">
+              <div class="service-opt-name">Bridal Package</div>
+              <div class="service-opt-dur">3 hrs</div>
+            </div>
+            <div class="service-opt-price">₦25,000</div>
+          </div>
+          <div class="service-option" onclick="selectService(this, 5000)">
+            <div class="service-radio"></div>
+            <div style="flex:1">
+              <div class="service-opt-name">Eyebrow Shaping</div>
+              <div class="service-opt-dur">20 mins</div>
+            </div>
+            <div class="service-opt-price">₦5,000</div>
+          </div>
+        </div>
+
+        <div class="booking-section">
+          <div class="booking-section-title">Where?</div>
+          <div class="location-toggle">
+            <button class="loc-btn active" id="loc-home" onclick="setLoc('home')">🏠 My Location</button>
+            <button class="loc-btn" id="loc-salon" onclick="setLoc('salon')">🏪 Their Salon</button>
+          </div>
+          <div id="address-input" style="margin-top:10px;padding:10px 12px;background:var(--cream);border-radius:10px;border:1px solid var(--border);font-size:12px;color:var(--mid)">
+            📍 Plot 5, Abubakar Tafawa Balewa Way, Maitama, Abuja
+          </div>
+        </div>
+
+        <div class="booking-section">
+          <div class="booking-section-title">Pick a Date</div>
+          <div class="date-row">
+            <div class="date-chip" onclick="selectDate(this)"><span class="day">Mon</span><span class="num">16</span></div>
+            <div class="date-chip selected" onclick="selectDate(this)"><span class="day">Tue</span><span class="num">17</span></div>
+            <div class="date-chip" onclick="selectDate(this)"><span class="day">Wed</span><span class="num">18</span></div>
+            <div class="date-chip" onclick="selectDate(this)"><span class="day">Thu</span><span class="num">19</span></div>
+            <div class="date-chip" onclick="selectDate(this)"><span class="day">Fri</span><span class="num">20</span></div>
+            <div class="date-chip" onclick="selectDate(this)"><span class="day">Sat</span><span class="num">21</span></div>
+          </div>
+          <div class="time-grid" style="margin-top:14px">
+            <div class="time-slot unavailable">8:00 AM</div>
+            <div class="time-slot" onclick="selectTime(this)">9:00 AM</div>
+            <div class="time-slot selected" onclick="selectTime(this)">10:30 AM</div>
+            <div class="time-slot" onclick="selectTime(this)">12:00 PM</div>
+            <div class="time-slot unavailable">1:30 PM</div>
+            <div class="time-slot" onclick="selectTime(this)">3:00 PM</div>
+            <div class="time-slot" onclick="selectTime(this)">4:30 PM</div>
+            <div class="time-slot unavailable">6:00 PM</div>
+            <div class="time-slot" onclick="selectTime(this)">7:30 PM</div>
+          </div>
+        </div>
+
+        <div class="booking-section">
+          <div class="booking-section-title">Add a Note (optional)</div>
+          <div style="background:var(--cream);border:1px solid var(--border);border-radius:10px;padding:10px;font-size:12px;color:#bbb">
+            Any special requests for your provider?
+          </div>
+        </div>
+        <div style="height:16px"></div>
+      </div>
+
+      <div class="book-cta">
+        <div class="book-total">
+          <span class="book-total-label">Total · Full Glam Makeup</span>
+          <span class="book-total-price" id="book-price">₦12,000</span>
+        </div>
+        <button class="primary-btn" onclick="goTo('payment')">Proceed to Payment →</button>
+      </div>
+    </div>
+
+    <!-- PAYMENT -->
+    <div class="screen payment-screen" id="payment" data-screen="payment">
+      <div class="booking-header">
+        <button class="back-btn" onclick="goBack()"><i class="ti ti-arrow-left"></i> Back</button>
+        <div style="font-family:'Cormorant Garamond',serif;font-size:22px;color:var(--dark)">Payment</div>
+      </div>
+
+      <div class="scroll-body" style="padding:20px">
+        <div style="background:var(--matcha-pale);border:1px solid rgba(74,124,89,0.2);border-radius:12px;padding:14px;margin-bottom:20px">
+          <div style="font-size:10px;color:var(--soft);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Order Summary</div>
+          <div style="display:flex;justify-content:space-between;font-size:13px;color:var(--dark);margin-bottom:6px">
+            <span>Full Glam Makeup</span><span>₦12,000</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--soft);margin-bottom:6px">
+            <span>Zara Beauty Studio · Tue Jun 17 · 10:30 AM</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--soft);margin-bottom:6px">
+            <span>Service fee (10%)</span><span>₦1,200</span>
+          </div>
+          <div style="border-top:1px solid rgba(74,124,89,0.2);margin:10px 0;padding-top:10px;display:flex;justify-content:space-between">
+            <span style="font-weight:500;font-size:14px;color:var(--dark)">Total</span>
+            <span style="font-family:'Cormorant Garamond',serif;font-size:20px;color:var(--dark)">₦13,200</span>
+          </div>
+        </div>
+
+        <div style="font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--soft);margin-bottom:12px">Choose Payment Method</div>
+
+        <div class="pay-option selected" onclick="selectPay(this)">
+          <span class="pay-icon">💳</span>
+          <div>
+            <div class="pay-label">Paystack</div>
+            <div class="pay-sub">Card, Transfer, USSD & more</div>
+          </div>
+          <i class="ti ti-circle-check-filled pay-check"></i>
+        </div>
+
+        <div class="pay-option" onclick="selectPay(this)">
+          <span class="pay-icon">💵</span>
+          <div>
+            <div class="pay-label">Pay on Arrival</div>
+            <div class="pay-sub">Cash or POS at location</div>
+          </div>
+        </div>
+
+        <div class="pay-option" onclick="selectPay(this)">
+          <span class="pay-icon">🏦</span>
+          <div>
+            <div class="pay-label">Bank Transfer</div>
+            <div class="pay-sub">Direct bank payment</div>
+          </div>
+        </div>
+
+        <div class="pay-option" onclick="selectPay(this)">
+          <span class="pay-icon">👛</span>
+          <div>
+            <div class="pay-label">Khade Wallet</div>
+            <div class="pay-sub">Balance: ₦5,400</div>
+          </div>
+        </div>
+
+        <div style="display:flex;align-items:center;gap:8px;padding:12px 0;margin-top:8px">
+          <div style="width:18px;height:18px;border-radius:4px;background:var(--matcha);display:flex;align-items:center;justify-content:center">
+            <i class="ti ti-check" style="font-size:11px;color:white"></i>
+          </div>
+          <span style="font-size:12px;color:var(--mid)">Send me a confirmation reminder</span>
+        </div>
+
+        <div style="background:var(--cream);border-radius:10px;padding:12px;margin:12px 0;display:flex;align-items:center;gap:8px">
+          <i class="ti ti-ticket" style="color:var(--matcha);font-size:18px"></i>
+          <span style="font-size:12px;color:var(--mid)">Enter promo code</span>
+          <span style="margin-left:auto;font-size:11px;color:var(--matcha);cursor:pointer">Apply</span>
+        </div>
+
+        <div style="background:#fff8e1;border-radius:10px;padding:10px 12px;font-size:11px;color:#c47d00;display:flex;align-items:center;gap:6px;margin-bottom:20px">
+          <i class="ti ti-shield-check" style="font-size:14px"></i>
+          Payments secured by Paystack · SSL encrypted
+        </div>
+
+        <button class="primary-btn" onclick="goTo('confirm')">Pay ₦13,200 →</button>
+        <div style="height:20px"></div>
+      </div>
+    </div>
+
+    <!-- CONFIRM -->
+    <div class="screen" id="confirm" data-screen="confirm" style="align-items:center;justify-content:center;text-align:center;padding:30px">
+      <div style="width:80px;height:80px;border-radius:50%;background:var(--matcha-pale);display:flex;align-items:center;justify-content:center;margin:0 auto 20px">
+        <i class="ti ti-circle-check" style="font-size:40px;color:var(--matcha)"></i>
+      </div>
+      <div style="font-family:'Cormorant Garamond',serif;font-size:28px;color:var(--dark);margin-bottom:8px">Booking Confirmed!</div>
+      <div style="font-size:13px;color:var(--soft);line-height:1.6;margin-bottom:24px">Your appointment with<br><strong style="color:var(--dark)">Zara Beauty Studio</strong><br>is set for Tue Jun 17 at 10:30 AM</div>
+
+      <div style="background:var(--white);border-radius:16px;border:1px solid var(--border);padding:16px;width:100%;margin-bottom:20px">
+        <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--mid);margin-bottom:8px">
+          <span>Booking ID</span><span style="color:var(--dark);font-weight:500">#KHD-2847</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--mid);margin-bottom:8px">
+          <span>Service</span><span style="color:var(--dark)">Full Glam Makeup</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--mid)">
+          <span>Amount Paid</span><span style="color:var(--matcha);font-weight:500">₦13,200</span>
+        </div>
+      </div>
+
+      <button class="primary-btn" onclick="goTo('tracking')" style="margin-bottom:12px">Track Appointment →</button>
+      <button onclick="goTo('home')" style="background:none;border:1px solid var(--border);color:var(--mid);padding:12px;width:100%;border-radius:14px;font-size:14px;cursor:pointer;font-family:'DM Sans'">Back to Home</button>
+    </div>
+
+    <!-- TRACKING -->
+    <div class="screen" id="tracking" data-screen="tracking">
+      <div style="background:var(--white);padding:16px 20px;border-bottom:1px solid var(--border);flex-shrink:0;display:flex;align-items:center;gap:10px">
+        <button class="back-btn" onclick="goBack()" style="margin-bottom:0"><i class="ti ti-arrow-left"></i></button>
+        <div style="font-family:'Cormorant Garamond',serif;font-size:20px;color:var(--dark)">Live Tracking</div>
+      </div>
+
+      <div class="map-placeholder">
+        <svg class="map-grid" width="375" height="220" xmlns="http://www.w3.org/2000/svg">
+          <defs><pattern id="grid" width="30" height="30" patternUnits="userSpaceOnUse"><path d="M 30 0 L 0 0 0 30" fill="none" stroke="#4a7c59" stroke-width="0.5"/></pattern></defs>
+          <rect width="100%" height="100%" fill="url(#grid)"/>
+          <line x1="80" y1="0" x2="80" y2="220" stroke="#4a7c59" stroke-width="1.5" stroke-opacity="0.4"/>
+          <line x1="200" y1="0" x2="200" y2="220" stroke="#4a7c59" stroke-width="1.5" stroke-opacity="0.4"/>
+          <line x1="0" y1="70" x2="375" y2="70" stroke="#4a7c59" stroke-width="1.5" stroke-opacity="0.4"/>
+          <line x1="0" y1="150" x2="375" y2="150" stroke="#4a7c59" stroke-width="1.5" stroke-opacity="0.4"/>
+          <polyline points="60,160 100,160 100,110 180,110 180,80 240,80" fill="none" stroke="#c9a84c" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="6,4"/>
+          <rect x="230" y="55" width="80" height="30" rx="6" fill="white" opacity="0.9"/>
+          <text x="270" y="75" text-anchor="middle" fill="#4a7c59" font-size="12" font-family="DM Sans">📍 Your Location</text>
+          <rect x="45" y="140" width="50" height="22" rx="5" fill="white" opacity="0.9"/>
+          <text x="70" y="156" text-anchor="middle" fill="#2d5c3f" font-size="11" font-family="DM Sans">🚗 Provider</text>
+        </svg>
+      </div>
+
+      <div class="track-card">
+        <div style="font-family:'Cormorant Garamond',serif;font-size:18px;color:var(--dark);margin-bottom:4px">On the way to you</div>
+        <div style="font-size:12px;color:var(--soft)">ETA: 12 minutes · 3.4km away</div>
+
+        <div class="track-progress">
+          <div class="track-line"></div>
+          <div class="track-line-fill"></div>
+          <div class="track-step">
+            <div class="track-dot done"><i class="ti ti-check"></i></div>
+            <span class="track-step-label">Booking<br>Confirmed</span>
+          </div>
+          <div class="track-step">
+            <div class="track-dot done"><i class="ti ti-check"></i></div>
+            <span class="track-step-label">Provider<br>Accepted</span>
+          </div>
+          <div class="track-step">
+            <div class="track-dot active"></div>
+            <span class="track-step-label">On the<br>Way</span>
+          </div>
+          <div class="track-step">
+            <div class="track-dot"></div>
+            <span class="track-step-label">In<br>Session</span>
+          </div>
+          <div class="track-step">
+            <div class="track-dot"></div>
+            <span class="track-step-label">Done ✦</span>
+          </div>
+        </div>
+
+        <div class="provider-arrive">
+          <div class="arrive-avatar">💄</div>
+          <div>
+            <div class="arrive-name">Zara (Provider)</div>
+            <div class="arrive-eta">Arriving in ~12 mins</div>
+          </div>
+          <i class="ti ti-message-circle arrive-chat"></i>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:4px">
+          <button style="padding:12px;background:var(--cream);border:1px solid var(--border);border-radius:12px;font-size:12px;color:var(--dark);cursor:pointer;font-family:'DM Sans'"><i class="ti ti-phone" style="font-size:14px"></i> Call</button>
+          <button onclick="goTo('cancel')" style="padding:12px;background:#fce4ec;border:1px solid #f8bbd0;border-radius:12px;font-size:12px;color:#c62828;cursor:pointer;font-family:'DM Sans'"><i class="ti ti-x" style="font-size:14px"></i> Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- CANCEL -->
+    <div class="screen" id="cancel" data-screen="cancel" style="align-items:center;justify-content:center;padding:30px">
+      <div style="width:70px;height:70px;border-radius:50%;background:#fce4ec;display:flex;align-items:center;justify-content:center;margin:0 auto 20px">
+        <i class="ti ti-alert-triangle" style="font-size:32px;color:#c62828"></i>
+      </div>
+      <div style="font-family:'Cormorant Garamond',serif;font-size:24px;color:var(--dark);text-align:center;margin-bottom:8px">Cancel Booking?</div>
+      <div style="font-size:13px;color:var(--soft);text-align:center;line-height:1.6;margin-bottom:24px">Are you sure you want to cancel your appointment with <strong style="color:var(--dark)">Zara Beauty Studio</strong>? A 10% cancellation fee applies.</div>
+
+      <div style="width:100%">
+        <div style="font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--soft);margin-bottom:10px">Reason for cancellation</div>
+        <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:20px">
+          <div class="pay-option" onclick="selectPay(this)" style="border-radius:10px;padding:10px 12px"><span style="font-size:13px;color:var(--dark)">Schedule conflict</span></div>
+          <div class="pay-option selected" onclick="selectPay(this)" style="border-radius:10px;padding:10px 12px"><span style="font-size:13px;color:var(--dark)">Found a better price</span></div>
+          <div class="pay-option" onclick="selectPay(this)" style="border-radius:10px;padding:10px 12px"><span style="font-size:13px;color:var(--dark)">Emergency / personal reason</span></div>
+          <div class="pay-option" onclick="selectPay(this)" style="border-radius:10px;padding:10px 12px"><span style="font-size:13px;color:var(--dark)">Other</span></div>
+        </div>
+        <button style="width:100%;padding:14px;background:#c62828;color:white;border:none;border-radius:14px;font-size:14px;cursor:pointer;font-family:'DM Sans';margin-bottom:10px" onclick="goTo('home')">Confirm Cancellation</button>
+        <button style="width:100%;padding:14px;background:none;border:1px solid var(--border);color:var(--mid);border-radius:14px;font-size:14px;cursor:pointer;font-family:'DM Sans'" onclick="goBack()">Keep Appointment</button>
+      </div>
+    </div>
+
+    <!-- APPOINTMENTS / HISTORY -->
+    <div class="screen" id="appointments" data-screen="appointments">
+      <div style="background:var(--white);padding:20px;border-bottom:1px solid var(--border);flex-shrink:0">
+        <div style="font-family:'Cormorant Garamond',serif;font-size:26px;color:var(--dark)">My Bookings</div>
+      </div>
+
+      <div class="view-switcher">
+        <button class="view-btn active" onclick="switchView(this,'upcoming-list')">Upcoming</button>
+        <button class="view-btn" onclick="switchView(this,'history-list')">History</button>
+      </div>
+
+      <div class="scroll-body" id="upcoming-list">
+        <div style="height:4px"></div>
+        <div class="history-card" style="border-color:var(--matcha);border-left:3px solid var(--matcha)">
+          <div class="history-top">
+            <div>
+              <div class="history-name">Zara Beauty Studio</div>
+              <div class="history-date">Tue Jun 17 · 10:30 AM</div>
+            </div>
+            <div class="status-badge upcoming">Upcoming</div>
+          </div>
+          <div class="history-service">💄 Full Glam Makeup · At My Location</div>
+          <div class="history-footer">
+            <span class="history-price">₦13,200</span>
+            <button class="rebook-btn" onclick="goTo('tracking')">Track →</button>
+          </div>
+        </div>
+
+        <div class="history-card">
+          <div class="history-top">
+            <div>
+              <div class="history-name">Glam Nails Studio</div>
+              <div class="history-date">Fri Jun 20 · 2:00 PM</div>
+            </div>
+            <div class="status-badge upcoming">Upcoming</div>
+          </div>
+          <div class="history-service">💅 Gel Manicure + Pedicure · At Salon</div>
+          <div class="history-footer">
+            <span class="history-price">₦9,500</span>
+            <button class="rebook-btn">Manage</button>
+          </div>
+        </div>
+
+        <div style="height:8px"></div>
+      </div>
+
+      <div class="scroll-body" id="history-list" style="display:none">
+        <div style="height:4px"></div>
+        <div class="history-card">
+          <div class="history-top">
+            <div>
+              <div class="history-name">King Cuts Barber</div>
+              <div class="history-date">Sat Jun 7 · 9:00 AM</div>
+            </div>
+            <div class="status-badge completed">Completed</div>
+          </div>
+          <div class="history-service">✂️ Fade + Beard Shape · At Salon</div>
+          <div class="history-footer">
+            <span class="history-price">₦4,500</span>
+            <button class="rebook-btn" onclick="goTo('booking')">Rebook</button>
+          </div>
+        </div>
+        <div class="history-card">
+          <div class="history-top">
+            <div>
+              <div class="history-name">Tranquil Wellness Spa</div>
+              <div class="history-date">Mon Jun 2 · 3:00 PM</div>
+            </div>
+            <div class="status-badge completed">Completed</div>
+          </div>
+          <div class="history-service">🧖 Deep Tissue Massage · At Spa</div>
+          <div class="history-footer">
+            <span class="history-price">₦20,000</span>
+            <button class="rebook-btn" onclick="goTo('booking')">Rebook</button>
+          </div>
+        </div>
+        <div class="history-card">
+          <div class="history-top">
+            <div>
+              <div class="history-name">Ebun Hair Lounge</div>
+              <div class="history-date">Thu May 22 · 11:00 AM</div>
+            </div>
+            <div class="status-badge cancelled">Cancelled</div>
+          </div>
+          <div class="history-service">💇 Knotless Braids · At Salon</div>
+          <div class="history-footer">
+            <span class="history-price">₦15,000</span>
+            <button class="rebook-btn" onclick="goTo('booking')">Rebook</button>
+          </div>
+        </div>
+        <div style="height:8px"></div>
+      </div>
+
+      <div class="nav-tabs">
+        <button class="nav-tab" onclick="goTo('home')"><i class="ti ti-home-2"></i><span>Home</span></button>
+        <button class="nav-tab" onclick="goTo('explore')"><i class="ti ti-compass"></i><span>Explore</span></button>
+        <button class="nav-tab active" onclick="goTo('appointments')"><i class="ti ti-calendar"></i><span>Bookings</span></button>
+        <button class="nav-tab" onclick="goTo('feed')"><i class="ti ti-layout-grid"></i><span>Feed</span></button>
+        <button class="nav-tab" onclick="goTo('profile')"><i class="ti ti-user-circle"></i><span>Profile</span></button>
+      </div>
+    </div>
+
+    <!-- FEED -->
+    <div class="screen" id="feed" data-screen="feed">
+      <div style="background:var(--white);padding:20px;border-bottom:1px solid var(--border);flex-shrink:0">
+        <div style="font-family:'Cormorant Garamond',serif;font-size:26px;color:var(--dark)">Inspiration</div>
+        <div style="font-size:11px;color:var(--soft);margin-top:2px">Discover work from top providers</div>
+      </div>
+
+      <div class="scroll-body">
+        <div style="height:12px"></div>
+        <div class="feed-post">
+          <div class="feed-header">
+            <div class="feed-avatar">💄</div>
+            <div><div class="feed-provider-name">Zara Beauty Studio</div><div class="feed-provider-cat">Makeup · Wuse II · ⭐ 4.9</div></div>
+            <button class="feed-book-btn" onclick="goTo('booking')">Book</button>
+          </div>
+          <div class="feed-img" style="background:linear-gradient(135deg,#f5e8f5,#e0c8e0)"><span>💫</span><div class="feed-img-badge">Bridal Glam ✦</div></div>
+          <div class="feed-actions">
+            <button class="feed-action liked" onclick="toggleLike(this)"><i class="ti ti-heart-filled" style="font-size:16px"></i> 234</button>
+            <button class="feed-action"><i class="ti ti-message-circle" style="font-size:16px"></i> 18</button>
+            <button class="feed-action"><i class="ti ti-share" style="font-size:16px"></i></button>
+          </div>
+          <div class="feed-caption">✨ Bridal glow served! Soft glam with a dewy finish for the big day. Slots filling fast 💍 — DM to book!</div>
+        </div>
+
+        <div class="feed-post">
+          <div class="feed-header">
+            <div class="feed-avatar" style="background:#e8f5e8">💅</div>
+            <div><div class="feed-provider-name">Chic Nails by Amaka</div><div class="feed-provider-cat">Nails · Maitama · ⭐ 4.7</div></div>
+            <button class="feed-book-btn" onclick="goTo('booking')">Book</button>
+          </div>
+          <div class="feed-img" style="background:linear-gradient(135deg,#e8f5e8,#c8e8c8)"><span>💅</span><div class="feed-img-badge">Nail Art ✦</div></div>
+          <div class="feed-actions">
+            <button class="feed-action" onclick="toggleLike(this)"><i class="ti ti-heart" style="font-size:16px"></i> 89</button>
+            <button class="feed-action"><i class="ti ti-message-circle" style="font-size:16px"></i> 7</button>
+            <button class="feed-action"><i class="ti ti-share" style="font-size:16px"></i></button>
+          </div>
+          <div class="feed-caption">🌸 Cherry blossom gel set for the weekend! Long-lasting, chip-resistant. Book your spot 👇</div>
+        </div>
+
+        <div class="feed-post">
+          <div class="feed-header">
+            <div class="feed-avatar" style="background:#f0e8f5">✂️</div>
+            <div><div class="feed-provider-name">King Cuts Barber</div><div class="feed-provider-cat">Barbing · Gwarinpa · ⭐ 4.9</div></div>
+            <button class="feed-book-btn" onclick="goTo('booking')">Book</button>
+          </div>
+          <div class="feed-img" style="background:linear-gradient(135deg,#f5f0e8,#e8d8c8)"><span>✂️</span><div class="feed-img-badge">Fresh Cut ✦</div></div>
+          <div class="feed-actions">
+            <button class="feed-action" onclick="toggleLike(this)"><i class="ti ti-heart" style="font-size:16px"></i> 156</button>
+            <button class="feed-action"><i class="ti ti-message-circle" style="font-size:16px"></i> 23</button>
+            <button class="feed-action"><i class="ti ti-share" style="font-size:16px"></i></button>
+          </div>
+          <div class="feed-caption">🔥 Skin fade + Edgar combo straight from our chair. Book Saturday slots now!</div>
+        </div>
+        <div style="height:20px"></div>
+      </div>
+
+      <div class="nav-tabs">
+        <button class="nav-tab" onclick="goTo('home')"><i class="ti ti-home-2"></i><span>Home</span></button>
+        <button class="nav-tab" onclick="goTo('explore')"><i class="ti ti-compass"></i><span>Explore</span></button>
+        <button class="nav-tab" onclick="goTo('appointments')"><i class="ti ti-calendar"></i><span>Bookings</span></button>
+        <button class="nav-tab active" onclick="goTo('feed')"><i class="ti ti-layout-grid"></i><span>Feed</span></button>
+        <button class="nav-tab" onclick="goTo('profile')"><i class="ti ti-user-circle"></i><span>Profile</span></button>
+      </div>
+    </div>
+
+    <!-- PROFILE -->
+    <div class="screen" id="profile" data-screen="profile">
+      <div style="background:var(--matcha-deep);padding:24px 20px 60px;flex-shrink:0">
+        <div style="display:flex;align-items:center;gap:14px">
+          <div style="width:56px;height:56px;border-radius:50%;background:rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;font-size:24px;border:2px solid rgba(255,255,255,0.3)">AC</div>
+          <div>
+            <div style="font-family:'Cormorant Garamond',serif;font-size:22px;color:white">Adaeze Chukwu</div>
+            <div style="font-size:11px;color:rgba(255,255,255,0.6)">Abuja · Member since 2024</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:10px;margin-top:16px">
+          <div style="flex:1;background:rgba(255,255,255,0.1);border-radius:10px;padding:10px;text-align:center">
+            <div style="font-size:18px;font-weight:500;color:white">12</div>
+            <div style="font-size:10px;color:rgba(255,255,255,0.6)">Bookings</div>
+          </div>
+          <div style="flex:1;background:rgba(255,255,255,0.1);border-radius:10px;padding:10px;text-align:center">
+            <div style="font-size:18px;font-weight:500;color:white">7</div>
+            <div style="font-size:10px;color:rgba(255,255,255,0.6)">Providers Saved</div>
+          </div>
+          <div style="flex:1;background:rgba(255,255,255,0.1);border-radius:10px;padding:10px;text-align:center">
+            <div style="font-size:18px;font-weight:500;color:white">Gold</div>
+            <div style="font-size:10px;color:rgba(255,255,255,0.6)">Tier ✦</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="scroll-body" style="margin-top:-24px;border-radius:24px 24px 0 0;background:var(--cream);padding-top:10px">
+        <div style="padding:16px 20px 8px;background:var(--cream);border-radius:24px 24px 0 0">
+          <div style="background:var(--white);border-radius:14px;border:1px solid var(--border);overflow:hidden">
+            <div style="padding:14px 16px;display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--border);cursor:pointer" onclick="goTo('appointments')">
+              <i class="ti ti-calendar" style="color:var(--matcha);font-size:18px"></i>
+              <span style="font-size:13px;color:var(--dark)">My Bookings</span>
+              <i class="ti ti-chevron-right" style="margin-left:auto;color:var(--soft)"></i>
+            </div>
+            <div style="padding:14px 16px;display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--border);cursor:pointer">
+              <i class="ti ti-heart" style="color:var(--matcha);font-size:18px"></i>
+              <span style="font-size:13px;color:var(--dark)">Saved Providers</span>
+              <i class="ti ti-chevron-right" style="margin-left:auto;color:var(--soft)"></i>
+            </div>
+            <div style="padding:14px 16px;display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--border);cursor:pointer">
+              <i class="ti ti-wallet" style="color:var(--matcha);font-size:18px"></i>
+              <span style="font-size:13px;color:var(--dark)">Khade Wallet · ₦5,400</span>
+              <i class="ti ti-chevron-right" style="margin-left:auto;color:var(--soft)"></i>
+            </div>
+            <div style="padding:14px 16px;display:flex;align-items:center;gap:12px;cursor:pointer">
+              <i class="ti ti-settings" style="color:var(--matcha);font-size:18px"></i>
+              <span style="font-size:13px;color:var(--dark)">Settings</span>
+              <i class="ti ti-chevron-right" style="margin-left:auto;color:var(--soft)"></i>
+            </div>
+          </div>
+
+          <div style="background:var(--matcha-pale);border-radius:14px;border:1px solid rgba(74,124,89,0.2);padding:14px;margin-top:12px">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+              <span style="font-size:16px">✦</span>
+              <span style="font-family:'Cormorant Garamond',serif;font-size:16px;color:var(--matcha-deep)">Khade Gold Member</span>
+            </div>
+            <div style="font-size:12px;color:var(--mid);margin-bottom:10px">You're 3 bookings away from Platinum tier. Unlock priority booking & exclusive discounts.</div>
+            <div style="background:var(--border);border-radius:4px;height:6px;overflow:hidden">
+              <div style="width:70%;height:100%;background:var(--gold);border-radius:4px"></div>
+            </div>
+            <div style="display:flex;justify-content:space-between;margin-top:4px;font-size:10px;color:var(--soft)"><span>Gold · 12 bookings</span><span>Platinum at 15</span></div>
+          </div>
+
+          <button onclick="goTo('provider-dash')" style="width:100%;margin-top:12px;padding:14px;background:var(--dark);color:white;border:none;border-radius:14px;font-size:13px;cursor:pointer;font-family:'DM Sans';display:flex;align-items:center;justify-content:center;gap:8px">
+            <i class="ti ti-briefcase" style="font-size:16px"></i> Switch to Provider View
+          </button>
+
+          <button onclick="goTo('admin')" style="width:100%;margin-top:8px;padding:14px;background:var(--matcha-deep);color:white;border:none;border-radius:14px;font-size:13px;cursor:pointer;font-family:'DM Sans';display:flex;align-items:center;justify-content:center;gap:8px">
+            <i class="ti ti-shield" style="font-size:16px"></i> Admin Dashboard
+          </button>
+          <div style="height:20px"></div>
+        </div>
+      </div>
+
+      <div class="nav-tabs">
+        <button class="nav-tab" onclick="goTo('home')"><i class="ti ti-home-2"></i><span>Home</span></button>
+        <button class="nav-tab" onclick="goTo('explore')"><i class="ti ti-compass"></i><span>Explore</span></button>
+        <button class="nav-tab" onclick="goTo('appointments')"><i class="ti ti-calendar"></i><span>Bookings</span></button>
+        <button class="nav-tab" onclick="goTo('feed')"><i class="ti ti-layout-grid"></i><span>Feed</span></button>
+        <button class="nav-tab active" onclick="goTo('profile')"><i class="ti ti-user-circle"></i><span>Profile</span></button>
+      </div>
+    </div>
+
+    <!-- ADMIN -->
+    <div class="screen" id="admin" data-screen="admin">
+      <div style="background:var(--dark);padding:20px;flex-shrink:0">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
+          <button class="back-btn" onclick="goBack()" style="color:rgba(255,255,255,0.7);margin-bottom:0"><i class="ti ti-arrow-left"></i></button>
+          <div style="font-family:'Cormorant Garamond',serif;font-size:22px;color:white">Admin Dashboard</div>
+        </div>
+        <div style="font-size:11px;color:rgba(255,255,255,0.4)">Khade Platform · June 2025</div>
+      </div>
+
+      <div class="scroll-body">
+        <div style="height:16px"></div>
+        <div class="admin-stat-grid">
+          <div class="admin-stat">
+            <div class="admin-stat-label">Total Revenue</div>
+            <div class="admin-stat-value">₦8.4M</div>
+            <div class="admin-stat-change">↑ 23% this month</div>
+          </div>
+          <div class="admin-stat">
+            <div class="admin-stat-label">Platform Fees</div>
+            <div class="admin-stat-value">₦840K</div>
+            <div class="admin-stat-change">10% commission</div>
+          </div>
+          <div class="admin-stat">
+            <div class="admin-stat-label">Bookings</div>
+            <div class="admin-stat-value">1,204</div>
+            <div class="admin-stat-change">↑ 18% this month</div>
+          </div>
+          <div class="admin-stat">
+            <div class="admin-stat-label">Active Users</div>
+            <div class="admin-stat-value">3,847</div>
+            <div class="admin-stat-change">↑ 31% this month</div>
+          </div>
+        </div>
+
+        <div style="padding:0 20px;margin-bottom:16px">
+          <div style="background:var(--white);border-radius:14px;border:1px solid var(--border);padding:16px">
+            <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--soft);margin-bottom:12px">Revenue Sources</div>
+            <div style="font-size:12px;color:var(--dark);margin-bottom:6px;display:flex;justify-content:space-between"><span>10% Platform Commission</span><span style="color:var(--matcha)">₦840K</span></div>
+            <div class="revenue-bar-track"><div class="revenue-bar-fill" style="width:65%"></div></div>
+            <div style="font-size:12px;color:var(--dark);margin:10px 0 6px;display:flex;justify-content:space-between"><span>Featured Provider Listings</span><span style="color:var(--matcha)">₦180K</span></div>
+            <div class="revenue-bar-track"><div class="revenue-bar-fill" style="width:22%"></div></div>
+            <div style="font-size:12px;color:var(--dark);margin:10px 0 6px;display:flex;justify-content:space-between"><span>Khade Gold Subscriptions</span><span style="color:var(--matcha)">₦95K</span></div>
+            <div class="revenue-bar-track"><div class="revenue-bar-fill" style="width:12%"></div></div>
+            <div style="font-size:12px;color:var(--dark);margin:10px 0 6px;display:flex;justify-content:space-between"><span>Priority Boosting (Ads)</span><span style="color:var(--matcha)">₦65K</span></div>
+            <div class="revenue-bar-track"><div class="revenue-bar-fill" style="width:8%"></div></div>
+          </div>
+        </div>
+
+        <div style="padding:0 20px;margin-bottom:16px">
+          <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--soft);margin-bottom:10px">Providers Overview</div>
+          <div style="background:var(--white);border-radius:14px;border:1px solid var(--border);overflow:hidden">
+            <div style="display:grid;grid-template-columns:1fr auto auto;padding:10px 14px;border-bottom:1px solid var(--border);font-size:10px;color:var(--soft);text-transform:uppercase;letter-spacing:0.5px">
+              <span>Provider</span><span style="text-align:right">Bookings</span><span style="text-align:right;padding-left:12px">Status</span>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr auto auto;padding:10px 14px;border-bottom:1px solid var(--border);font-size:12px;align-items:center">
+              <span style="color:var(--dark)">💄 Zara Beauty</span><span style="text-align:right;color:var(--mid)">128</span><span style="padding-left:12px"><span style="background:#e8f5e9;color:#2e7d32;font-size:9px;padding:2px 7px;border-radius:6px">Active</span></span>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr auto auto;padding:10px 14px;border-bottom:1px solid var(--border);font-size:12px;align-items:center">
+              <span style="color:var(--dark)">🧖 Tranquil Spa</span><span style="text-align:right;color:var(--mid)">94</span><span style="padding-left:12px"><span style="background:#e8f5e9;color:#2e7d32;font-size:9px;padding:2px 7px;border-radius:6px">Active</span></span>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr auto auto;padding:10px 14px;border-bottom:1px solid var(--border);font-size:12px;align-items:center">
+              <span style="color:var(--dark)">💅 Chic Nails</span><span style="text-align:right;color:var(--mid)">203</span><span style="padding-left:12px"><span style="background:#e8f5e9;color:#2e7d32;font-size:9px;padding:2px 7px;border-radius:6px">Active</span></span>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr auto auto;padding:10px 14px;font-size:12px;align-items:center">
+              <span style="color:var(--dark)">✂️ King Cuts</span><span style="text-align:right;color:var(--mid)">176</span><span style="padding-left:12px"><span style="background:#fff3e0;color:#e65100;font-size:9px;padding:2px 7px;border-radius:6px">Review</span></span>
+            </div>
+          </div>
+        </div>
+
+        <div style="padding:0 20px;margin-bottom:20px">
+          <div style="background:var(--dark);border-radius:14px;padding:16px;color:white">
+            <div style="font-family:'Cormorant Garamond',serif;font-size:18px;margin-bottom:8px">How Khade Makes Money</div>
+            <div style="font-size:11px;color:rgba(255,255,255,0.6);line-height:1.8">
+              ✦ 10% commission on every completed booking<br>
+              ✦ ₦5,000/mo — featured provider listing<br>
+              ✦ ₦3,000/mo — Khade Gold (customer loyalty)<br>
+              ✦ ₦2,500/boost — priority search placement<br>
+              ✦ ₦15,000/yr — provider verification badge<br>
+              ✦ Data insights reports for providers
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PROVIDER DASHBOARD -->
+    <div class="screen" id="provider-dash" data-screen="provider-dash">
+      <div class="provider-header">
+        <button class="back-btn" onclick="goBack()" style="color:rgba(255,255,255,0.7);margin-bottom:8px"><i class="ti ti-arrow-left"></i> Back</button>
+        <div class="provider-dash-name">Zara Beauty Studio</div>
+        <div class="provider-dash-sub">Makeup & Glam · Wuse II, Abuja ✦ Verified</div>
+        <div class="provider-stat-row">
+          <div class="provider-stat"><div class="provider-stat-num">₦284K</div><div class="provider-stat-lbl">This Month</div></div>
+          <div class="provider-stat"><div class="provider-stat-num">128</div><div class="provider-stat-lbl">Bookings</div></div>
+          <div class="provider-stat"><div class="provider-stat-num">4.9 ⭐</div><div class="provider-stat-lbl">Rating</div></div>
+          <div class="provider-stat"><div class="provider-stat-num">98%</div><div class="provider-stat-lbl">Completion</div></div>
+        </div>
+      </div>
+
+      <div class="view-switcher" style="margin-top:14px">
+        <button class="view-btn active" onclick="switchView(this,'appt-view')">Appointments</button>
+        <button class="view-btn" onclick="switchView(this,'post-view')">My Posts</button>
+        <button class="view-btn" onclick="switchView(this,'earn-view')">Earnings</button>
+      </div>
+
+      <div class="scroll-body" id="appt-view">
+        <div style="padding:0 20px 10px;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--soft)">Today · 3 appointments</div>
+        <div class="upcoming-appt">
+          <div class="appt-time-col"><div class="appt-time">10:30</div><div class="appt-am">AM</div></div>
+          <div>
+            <div class="appt-client">Adaeze Chukwu</div>
+            <div class="appt-service">Full Glam Makeup</div>
+            <div class="appt-loc"><i class="ti ti-map-pin" style="font-size:10px"></i> At Client Location</div>
+          </div>
+          <div class="appt-price">₦12,000</div>
+        </div>
+        <div class="upcoming-appt">
+          <div class="appt-time-col"><div class="appt-time">2:00</div><div class="appt-am">PM</div></div>
+          <div>
+            <div class="appt-client">Ngozi Williams</div>
+            <div class="appt-service">Natural Everyday Look</div>
+            <div class="appt-loc"><i class="ti ti-map-pin" style="font-size:10px"></i> At Salon</div>
+          </div>
+          <div class="appt-price">₦8,000</div>
+        </div>
+        <div class="upcoming-appt">
+          <div class="appt-time-col"><div class="appt-time">5:00</div><div class="appt-am">PM</div></div>
+          <div>
+            <div class="appt-client">Fatima Ibrahim</div>
+            <div class="appt-service">Bridal Package</div>
+            <div class="appt-loc"><i class="ti ti-map-pin" style="font-size:10px"></i> At Client Location</div>
+          </div>
+          <div class="appt-price">₦25,000</div>
+        </div>
+      </div>
+
+      <div class="scroll-body" id="post-view" style="display:none;padding:14px 20px">
+        <button style="width:100%;padding:12px;background:var(--matcha);color:white;border:none;border-radius:12px;font-size:13px;cursor:pointer;font-family:'DM Sans';display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:14px">
+          <i class="ti ti-plus" style="font-size:16px"></i> Share New Work
+        </button>
+        <div class="feed-post" style="margin:0 0 12px">
+          <div class="feed-img" style="height:160px"><span>💫</span><div class="feed-img-badge">234 likes</div></div>
+          <div style="padding:10px 14px;font-size:12px;color:var(--mid)">Bridal glam served! ✨ — <span style="color:var(--matcha)">18 comments · 12 saves</span></div>
+        </div>
+        <div class="feed-post" style="margin:0 0 12px">
+          <div class="feed-img" style="height:160px;background:linear-gradient(135deg,#f0e8f5,#e0c8e0)"><span>💄</span><div class="feed-img-badge">189 likes</div></div>
+          <div style="padding:10px 14px;font-size:12px;color:var(--mid)">Evening smokey eye 🌙 — <span style="color:var(--matcha)">9 comments · 8 saves</span></div>
+        </div>
+      </div>
+
+      <div class="scroll-body" id="earn-view" style="display:none;padding:20px">
+        <div style="background:var(--matcha-deep);border-radius:14px;padding:16px;color:white;margin-bottom:14px">
+          <div style="font-size:11px;opacity:0.6;margin-bottom:4px">Available for Withdrawal</div>
+          <div style="font-family:'Cormorant Garamond',serif;font-size:32px">₦255,600</div>
+          <button style="margin-top:12px;background:var(--gold);color:var(--dark);border:none;padding:8px 20px;border-radius:10px;font-size:12px;cursor:pointer;font-family:'DM Sans';font-weight:500">Withdraw to Bank</button>
+        </div>
+        <div style="background:var(--white);border-radius:14px;border:1px solid var(--border);padding:14px">
+          <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--soft);margin-bottom:12px">This Month Breakdown</div>
+          <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--mid);margin-bottom:8px"><span>Gross Earnings</span><span style="color:var(--dark)">₦284,000</span></div>
+          <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--mid);margin-bottom:8px"><span>Khade Commission (10%)</span><span style="color:#c62828">-₦28,400</span></div>
+          <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--mid);border-top:1px solid var(--border);padding-top:8px;margin-top:4px"><span style="font-weight:500">Net Payout</span><span style="color:var(--matcha);font-weight:500">₦255,600</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- EXPLORE / SEARCH -->
+    <div class="screen" id="explore" data-screen="explore">
+      <div style="background:var(--white);padding:16px 20px;border-bottom:1px solid var(--border);flex-shrink:0">
+        <div class="search-bar" style="margin:0 0 12px">
+          <i class="ti ti-search"></i>
+          <span>Search in Explore...</span>
+        </div>
+        <div class="categories-scroll" style="padding:0">
+          <div class="cat-chip active" onclick="setCat(this)"><div class="cat-icon">💆</div><span class="cat-label">All</span></div>
+          <div class="cat-chip" onclick="setCat(this)"><div class="cat-icon">✂️</div><span class="cat-label">Barbing</span></div>
+          <div class="cat-chip" onclick="setCat(this)"><div class="cat-icon">💅</div><span class="cat-label">Nails</span></div>
+          <div class="cat-chip" onclick="setCat(this)"><div class="cat-icon">💄</div><span class="cat-label">Makeup</span></div>
+          <div class="cat-chip" onclick="setCat(this)"><div class="cat-icon">🧖</div><span class="cat-label">Spa</span></div>
+          <div class="cat-chip" onclick="setCat(this)"><div class="cat-icon">💇</div><span class="cat-label">Hair</span></div>
+        </div>
+      </div>
+
+      <div class="scroll-body">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:14px 20px">
+          <div onclick="goTo('booking')" style="background:var(--white);border-radius:14px;border:1px solid var(--border);overflow:hidden;cursor:pointer">
+            <div style="height:90px;background:linear-gradient(135deg,#f5e8f5,#e0c8e0);display:flex;align-items:center;justify-content:center;font-size:32px">💄</div>
+            <div style="padding:8px 10px"><div style="font-size:12px;font-weight:500;color:var(--dark)">Zara Beauty</div><div style="font-size:10px;color:var(--soft)">⭐ 4.9 · 1.4km</div><div style="font-size:11px;color:var(--matcha);margin-top:2px">From ₦12,000</div></div>
+          </div>
+          <div onclick="goTo('booking')" style="background:var(--white);border-radius:14px;border:1px solid var(--border);overflow:hidden;cursor:pointer">
+            <div style="height:90px;background:linear-gradient(135deg,#e8f5e8,#c8e8c8);display:flex;align-items:center;justify-content:center;font-size:32px">💅</div>
+            <div style="padding:8px 10px"><div style="font-size:12px;font-weight:500;color:var(--dark)">Chic Nails</div><div style="font-size:10px;color:var(--soft)">⭐ 4.7 · 0.9km</div><div style="font-size:11px;color:var(--matcha);margin-top:2px">From ₦7,000</div></div>
+          </div>
+          <div onclick="goTo('booking')" style="background:var(--white);border-radius:14px;border:1px solid var(--border);overflow:hidden;cursor:pointer">
+            <div style="height:90px;background:linear-gradient(135deg,#e8f0f5,#c8d8e8);display:flex;align-items:center;justify-content:center;font-size:32px">🧖</div>
+            <div style="padding:8px 10px"><div style="font-size:12px;font-weight:500;color:var(--dark)">Tranquil Spa</div><div style="font-size:10px;color:var(--soft)">⭐ 4.8 · 3.2km</div><div style="font-size:11px;color:var(--matcha);margin-top:2px">From ₦18,000</div></div>
+          </div>
+          <div onclick="goTo('booking')" style="background:var(--white);border-radius:14px;border:1px solid var(--border);overflow:hidden;cursor:pointer">
+            <div style="height:90px;background:linear-gradient(135deg,#f5f0e8,#e8d8c8);display:flex;align-items:center;justify-content:center;font-size:32px">✂️</div>
+            <div style="padding:8px 10px"><div style="font-size:12px;font-weight:500;color:var(--dark)">King Cuts</div><div style="font-size:10px;color:var(--soft)">⭐ 4.9 · 0.5km</div><div style="font-size:11px;color:var(--matcha);margin-top:2px">From ₦3,500</div></div>
+          </div>
+          <div onclick="goTo('booking')" style="background:var(--white);border-radius:14px;border:1px solid var(--border);overflow:hidden;cursor:pointer">
+            <div style="height:90px;background:linear-gradient(135deg,#e8f5e8,#c8e8c8);display:flex;align-items:center;justify-content:center;font-size:32px">💇</div>
+            <div style="padding:8px 10px"><div style="font-size:12px;font-weight:500;color:var(--dark)">Ebun Hair</div><div style="font-size:10px;color:var(--soft)">⭐ 4.8 · 1.2km</div><div style="font-size:11px;color:var(--matcha);margin-top:2px">From ₦5,000</div></div>
+          </div>
+          <div onclick="goTo('booking')" style="background:var(--white);border-radius:14px;border:1px solid var(--border);overflow:hidden;cursor:pointer">
+            <div style="height:90px;background:linear-gradient(135deg,#f5f0f5,#e8d8e8);display:flex;align-items:center;justify-content:center;font-size:32px">🧴</div>
+            <div style="padding:8px 10px"><div style="font-size:12px;font-weight:500;color:var(--dark)">Skin by Tola</div><div style="font-size:10px;color:var(--soft)">⭐ 4.6 · 2.4km</div><div style="font-size:11px;color:var(--matcha);margin-top:2px">From ₦10,000</div></div>
+          </div>
+          <div onclick="goTo('booking')" style="background:var(--white);border-radius:14px;border:1px solid var(--border);overflow:hidden;cursor:pointer">
+            <div style="height:90px;background:linear-gradient(135deg,#fdf5e8,#f5e0c8);display:flex;align-items:center;justify-content:center;font-size:32px">🪡</div>
+            <div style="padding:8px 10px"><div style="font-size:12px;font-weight:500;color:var(--dark)">Braids by Chi</div><div style="font-size:10px;color:var(--soft)">⭐ 4.7 · 1.8km</div><div style="font-size:11px;color:var(--matcha);margin-top:2px">From ₦12,000</div></div>
+          </div>
+          <div onclick="goTo('booking')" style="background:var(--white);border-radius:14px;border:1px solid var(--border);overflow:hidden;cursor:pointer">
+            <div style="height:90px;background:linear-gradient(135deg,#e8f0ea,#c8d8cc);display:flex;align-items:center;justify-content:center;font-size:32px">💆</div>
+            <div style="padding:8px 10px"><div style="font-size:12px;font-weight:500;color:var(--dark)">Bliss Wellness</div><div style="font-size:10px;color:var(--soft)">⭐ 4.5 · 4.1km</div><div style="font-size:11px;color:var(--matcha);margin-top:2px">From ₦22,000</div></div>
+          </div>
+        </div>
+        <div style="height:20px"></div>
+      </div>
+
+      <div class="nav-tabs">
+        <button class="nav-tab" onclick="goTo('home')"><i class="ti ti-home-2"></i><span>Home</span></button>
+        <button class="nav-tab active" onclick="goTo('explore')"><i class="ti ti-compass"></i><span>Explore</span></button>
+        <button class="nav-tab" onclick="goTo('appointments')"><i class="ti ti-calendar"></i><span>Bookings</span></button>
+        <button class="nav-tab" onclick="goTo('feed')"><i class="ti ti-layout-grid"></i><span>Feed</span></button>
+        <button class="nav-tab" onclick="goTo('profile')"><i class="ti ti-user-circle"></i><span>Profile</span></button>
+      </div>
+    </div>
+
+    <!-- NOTIFICATIONS PLACEHOLDER -->
+    <div class="screen" id="notifications" data-screen="notifications">
+      <div style="background:var(--white);padding:20px;border-bottom:1px solid var(--border);flex-shrink:0;display:flex;align-items:center;gap:10px">
+        <button class="back-btn" onclick="goBack()" style="margin-bottom:0"><i class="ti ti-arrow-left"></i></button>
+        <div style="font-family:'Cormorant Garamond',serif;font-size:22px;color:var(--dark)">Notifications</div>
+      </div>
+      <div class="scroll-body">
+        <div style="padding:12px 20px;border-bottom:1px solid var(--border);display:flex;gap:12px;align-items:flex-start;background:var(--matcha-pale)">
+          <div style="width:36px;height:36px;border-radius:50%;background:var(--matcha);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:16px">✦</div>
+          <div><div style="font-size:13px;font-weight:500;color:var(--dark);margin-bottom:2px">Booking Confirmed!</div><div style="font-size:12px;color:var(--mid)">Your appointment with Zara Beauty Studio is set for Tue Jun 17 at 10:30 AM</div><div style="font-size:10px;color:var(--soft);margin-top:4px">Just now</div></div>
+        </div>
+        <div style="padding:12px 20px;border-bottom:1px solid var(--border);display:flex;gap:12px;align-items:flex-start">
+          <div style="width:36px;height:36px;border-radius:50%;background:#f5f0f5;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:16px">💅</div>
+          <div><div style="font-size:13px;font-weight:500;color:var(--dark);margin-bottom:2px">Chic Nails liked your review</div><div style="font-size:12px;color:var(--mid)">Thank you for your 5-star review!</div><div style="font-size:10px;color:var(--soft);margin-top:4px">2 hours ago</div></div>
+        </div>
+        <div style="padding:12px 20px;border-bottom:1px solid var(--border);display:flex;gap:12px;align-items:flex-start">
+          <div style="width:36px;height:36px;border-radius:50%;background:#fff8e1;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:16px">🎉</div>
+          <div><div style="font-size:13px;font-weight:500;color:var(--dark);margin-bottom:2px">You unlocked Gold tier!</div><div style="font-size:12px;color:var(--mid)">You now enjoy priority booking & 5% cashback</div><div style="font-size:10px;color:var(--soft);margin-top:4px">Yesterday</div></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  let history = ['splash'];
+  
+  function goTo(screen) {
+    const screens = document.querySelectorAll('.screen');
+    screens.forEach(s => s.classList.remove('active'));
+    const target = document.getElementById(screen);
+    if (target) {
+      target.classList.add('active');
+      if (history[history.length - 1] !== screen) history.push(screen);
+    }
+  }
+  
+  function goBack() {
+    if (history.length > 1) {
+      history.pop();
+      const prev = history[history.length - 1];
+      const screens = document.querySelectorAll('.screen');
+      screens.forEach(s => s.classList.remove('active'));
+      const target = document.getElementById(prev);
+      if (target) target.classList.add('active');
+    }
+  }
+  
+  function setCat(el) {
+    document.querySelectorAll('.cat-chip').forEach(c => c.classList.remove('active'));
+    el.classList.add('active');
+  }
+  
+  function toggleFav(e, btn) {
+    e.stopPropagation();
+    btn.classList.toggle('liked');
+    const icon = btn.querySelector('i');
+    if (btn.classList.contains('liked')) {
+      icon.className = 'ti ti-heart-filled';
+    } else {
+      icon.className = 'ti ti-heart';
+    }
+  }
+  
+  function toggleLike(btn) {
+    btn.classList.toggle('liked');
+    const icon = btn.querySelector('i');
+    const text = btn.textContent.trim();
+    const num = parseInt(text.replace(/\D/g,''));
+    if (btn.classList.contains('liked')) {
+      icon.className = 'ti ti-heart-filled';
+      btn.innerHTML = `<i class="ti ti-heart-filled" style="font-size:16px"></i> ${num + 1}`;
+      btn.classList.add('liked');
+    } else {
+      icon.className = 'ti ti-heart';
+      btn.innerHTML = `<i class="ti ti-heart" style="font-size:16px"></i> ${num - 1}`;
+    }
+  }
+  
+  function selectService(el, price) {
+    document.querySelectorAll('.service-option .service-radio').forEach(r => r.classList.remove('selected'));
+    el.querySelector('.service-radio').classList.add('selected');
+    document.getElementById('book-price').textContent = '₦' + price.toLocaleString();
+  }
+  
+  function setLoc(type) {
+    document.getElementById('loc-home').classList.toggle('active', type === 'home');
+    document.getElementById('loc-salon').classList.toggle('active', type === 'salon');
+  }
+  
+  function selectDate(el) {
+    document.querySelectorAll('.date-chip').forEach(d => d.classList.remove('selected'));
+    el.classList.add('selected');
+  }
+  
+  function selectTime(el) {
+    if (el.classList.contains('unavailable')) return;
+    document.querySelectorAll('.time-slot').forEach(t => t.classList.remove('selected'));
+    el.classList.add('selected');
+  }
+  
+  function selectPay(el) {
+    el.closest('.scroll-body, div').querySelectorAll('.pay-option').forEach(p => {
+      p.classList.remove('selected');
+      const check = p.querySelector('.pay-check');
+      if (check) check.remove();
+    });
+    el.classList.add('selected');
+    el.insertAdjacentHTML('beforeend', '<i class="ti ti-circle-check-filled pay-check"></i>');
+  }
+  
+  function switchView(btn, viewId) {
+    const parent = btn.closest('.screen');
+    btn.closest('.view-switcher').querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    parent.querySelectorAll('.scroll-body[id]').forEach(v => v.style.display = 'none');
+    const target = document.getElementById(viewId);
+    if (target) target.style.display = 'block';
+  }
+
+  // Mark native Capacitor shell for full-screen layout
+  if (window.Capacitor?.isNativePlatform?.()) {
+    document.body.classList.add('native-app');
+  }
+</script>
+<script type="module" src="js/app.js"></script>
+<script src="capacitor.js"></script>
+</body>
+</html>

@@ -1,0 +1,23 @@
+# Render Blueprint — Khade API
+# https://render.com/docs/blueprint-spec
+services:
+  - type: web
+    name: khade-api
+    runtime: node
+    rootDir: backend
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PAYSTACK_SECRET_KEY
+        sync: false
+      - key: PAYSTACK_PUBLIC_KEY
+        sync: false
+      - key: PAYSTACK_CALLBACK_BASE
+        sync: false
+      - key: PEXELS_API_KEY
+        sync: false
+        optional: true
