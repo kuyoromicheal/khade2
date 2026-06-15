@@ -1,11 +1,15 @@
 import 'dart:convert';
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
-import 'package:geolocator/geolocator.dart';
 import '../config/api_config.dart';
 import '../models/models.dart';
 import '../utils/geo_utils.dart';
 import 'khade_api.dart';
+import 'location_service.dart';
+import 'location_prefs.dart';
+import 'auth_service.dart';
+import 'realtime_sync_service.dart';
 
 /// Central store: embedded backend seed data + live API sync.
 class KhadeRepository extends ChangeNotifier {
@@ -28,12 +32,22 @@ class KhadeRepository extends ChangeNotifier {
 
   double userLat = defaultLat;
   double userLng = defaultLng;
+  String locationLabel = 'Maitama, Abuja';
+  String userAddress = 'Maitama, Abuja';
+  bool hasRealLocation = false;
+  bool pinAdjusted = false;
+  double? locationAccuracyMeters;
+  bool inServiceArea = true;
+  List<SavedAddress> savedAddresses = [];
 
   bool isLoading = true;
   bool isLive = false;
   String? lastError;
   String apiUrl = ApiConfig.baseUrl;
   Map<String, dynamic> adminStats = {};
+  Timer? _notificationTimer;
+
+  int get unreadNotificationCount => notifications.where((n) => !n.read).length;
 
   List<BookingModel> bookingsForProvider(int providerId) =>
       bookings.where((b) => b.providerId == providerId).toList();
@@ -116,22 +130,171 @@ class KhadeRepository extends ChangeNotifier {
     }
   }
 
+  Future<void> refreshNotifications() async {
+    if (isLive) {
+      try {
+        notifications = await khadeApi.getNotifications();
+        notifyListeners();
+      } catch (_) {}
+      return;
+    }
+    notifyListeners();
+  }
+
+  Future<void> markAllNotificationsRead() async {
+    if (isLive) {
+      try {
+        await khadeApi.markAllNotificationsRead();
+        notifications = notifications.map((n) => n.markRead()).toList();
+      } catch (_) {
+        notifications = notifications.map((n) => n.markRead()).toList();
+      }
+    } else {
+      notifications = notifications.map((n) => n.markRead()).toList();
+    }
+    notifyListeners();
+  }
+
+  void _prependNotification({required String title, required String body, String emoji = '✦'}) {
+    notifications.insert(
+      0,
+      NotificationModel(
+        id: DateTime.now().millisecondsSinceEpoch,
+        title: title,
+        body: body,
+        emoji: emoji,
+        createdAt: DateTime.now().toIso8601String(),
+      ),
+    );
+    notifyListeners();
+  }
+
+  void _startNotificationPolling() {
+    _notificationTimer?.cancel();
+    if (!isLive) return;
+    _notificationTimer = Timer.periodic(const Duration(seconds: 10), (_) => refreshNotifications());
+    RealtimeSyncService.instance.start();
+  }
+
+  void _stopNotificationPolling() {
+    _notificationTimer?.cancel();
+    _notificationTimer = null;
+    RealtimeSyncService.instance.stop();
+  }
+
+  /// Apply live sync snapshot (wallet, notifications, feed).
+  void applySyncSnapshot(SyncSnapshot snap) {
+    if (user != null) {
+      user = UserModel(
+        id: user!.id,
+        name: user!.name,
+        city: user!.city,
+        tier: user!.tier,
+        walletBalance: snap.walletBalance,
+        bookingsCount: user!.bookingsCount,
+        savedProviders: user!.savedProviders,
+        memberSince: user!.memberSince,
+        role: user!.role,
+        providerId: user!.providerId,
+      );
+    }
+    if (snap.notifications.isNotEmpty) {
+      final existingIds = notifications.map((n) => n.id).toSet();
+      for (final n in snap.notifications) {
+        if (!existingIds.contains(n.id)) notifications.insert(0, n);
+      }
+      notifications.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    }
+    if (snap.walletTransactions.isNotEmpty) {
+      final existingIds = walletTransactions.map((t) => t.id).toSet();
+      for (final t in snap.walletTransactions) {
+        if (!existingIds.contains(t.id)) walletTransactions.insert(0, t);
+      }
+    }
+    if (snap.feedPosts.isNotEmpty) {
+      for (final post in snap.feedPosts) {
+        final idx = feed.indexWhere((f) => f.id == post.id);
+        if (idx >= 0) {
+          feed[idx] = post;
+        } else {
+          feed.insert(0, post);
+        }
+      }
+    }
+    notifyListeners();
+  }
+
   bool isProviderSaved(int id) => savedProviderIds.contains(id);
 
   List<FeedCommentModel> commentsForPost(int postId) => _commentsByPost[postId] ?? [];
 
   Future<void> updateUserLocation() async {
-    try {
-      final enabled = await Geolocator.isLocationServiceEnabled();
-      if (!enabled) return;
-      var perm = await Geolocator.checkPermission();
-      if (perm == LocationPermission.denied) perm = await Geolocator.requestPermission();
-      if (perm == LocationPermission.denied || perm == LocationPermission.deniedForever) return;
-      final pos = await Geolocator.getCurrentPosition();
-      userLat = pos.latitude;
-      userLng = pos.longitude;
-      notifyListeners();
-    } catch (_) {}
+    final loc = await resolveUserLocation();
+    if (loc != null) {
+      await applyDeliveryPoint(loc.toDeliveryPoint(), fromGps: true, persist: true);
+    }
+  }
+
+  Future<void> applyDeliveryPoint(DeliveryPoint point, {bool fromGps = false, bool persist = true}) async {
+    userLat = point.latitude;
+    userLng = point.longitude;
+    locationLabel = point.label;
+    userAddress = point.address;
+    locationAccuracyMeters = point.accuracyMeters;
+    pinAdjusted = point.pinAdjusted;
+    hasRealLocation = fromGps || point.pinAdjusted;
+    inServiceArea = point.inServiceArea;
+    _recalculateProviderDistances();
+    if (persist) await LocationPrefs.saveDeliveryPoint(point);
+    notifyListeners();
+  }
+
+  Future<void> loadSavedLocation() async {
+    savedAddresses = await LocationPrefs.loadSavedAddresses();
+    final saved = await LocationPrefs.loadDeliveryPoint();
+    if (saved != null) {
+      await applyDeliveryPoint(saved, persist: false);
+      return;
+    }
+    await updateUserLocation();
+  }
+
+  Future<void> saveCurrentAsHome() async {
+    final home = SavedAddress(
+      id: 'home',
+      name: 'Home',
+      emoji: '🏠',
+      latitude: userLat,
+      longitude: userLng,
+      label: locationLabel,
+      address: userAddress,
+    );
+    await LocationPrefs.upsertSavedAddress(home);
+    savedAddresses = await LocationPrefs.loadSavedAddresses();
+    notifyListeners();
+  }
+
+  ProviderModel _withDistance(ProviderModel p) {
+    final d = distanceToProvider(p);
+    return ProviderModel(
+      id: p.id, name: p.name, category: p.category, emoji: p.emoji, rating: p.rating,
+      reviewCount: p.reviewCount, distanceKm: d, area: p.area, priceFrom: p.priceFrom,
+      badge: p.badge, verified: p.verified, featured: p.featured,
+      gradientStart: p.gradientStart, gradientEnd: p.gradientEnd,
+      imageUrl: p.imageUrl, avatarUrl: p.avatarUrl, latitude: p.latitude, longitude: p.longitude,
+      phone: p.phone, services: p.services,
+    );
+  }
+
+  void _recalculateProviderDistances() {
+    providers = providers.map(_withDistance).toList();
+  }
+
+  /// Featured providers sorted by real distance from you.
+  List<ProviderModel> get featuredNearYou {
+    final list = providers.where((p) => p.featured).toList()
+      ..sort((a, b) => a.distanceKm.compareTo(b.distanceKm));
+    return list;
   }
 
   double distanceToProvider(ProviderModel p) {
@@ -156,17 +319,7 @@ class KhadeRepository extends ChangeNotifier {
     list = list.where((p) => p.priceFrom >= filters.minPrice && p.priceFrom <= filters.maxPrice).toList();
     if (filters.verifiedOnly) list = list.where((p) => p.verified).toList();
 
-    final withDist = list.map((p) {
-      final d = distanceToProvider(p);
-      return ProviderModel(
-        id: p.id, name: p.name, category: p.category, emoji: p.emoji, rating: p.rating,
-        reviewCount: p.reviewCount, distanceKm: d, area: p.area, priceFrom: p.priceFrom,
-        badge: p.badge, verified: p.verified, featured: p.featured,
-        gradientStart: p.gradientStart, gradientEnd: p.gradientEnd,
-        imageUrl: p.imageUrl, avatarUrl: p.avatarUrl, latitude: p.latitude, longitude: p.longitude,
-        services: p.services,
-      );
-    }).where((p) => p.distanceKm <= filters.maxDistance).toList();
+    final withDist = list.map(_withDistance).toList().where((p) => p.distanceKm <= filters.maxDistance).toList();
 
     withDist.sort((a, b) {
       switch (filters.sortBy) {
@@ -265,15 +418,17 @@ class KhadeRepository extends ChangeNotifier {
       final startLng = provider?.longitude ?? 7.495;
       final progress = (DateTime.now().millisecond % 1000) / 1000 * 0.7 + 0.2;
       return TrackingSnapshot(
-        providerLat: startLat + (defaultLat - startLat) * progress,
-        providerLng: startLng + (defaultLng - startLng) * progress,
-        destinationLat: defaultLat,
-        destinationLng: defaultLng,
+        providerLat: startLat + (userLat - startLat) * progress,
+        providerLng: startLng + (userLng - startLng) * progress,
+        destinationLat: userLat,
+        destinationLng: userLng,
         distanceKm: 3.4 * (1 - progress),
         etaMinutes: (12 * (1 - progress)).ceil().clamp(1, 30),
         progressStep: progress < 0.3 ? 2 : progress < 0.7 ? 3 : 4,
         providerName: provider?.name ?? booking?.providerName,
         providerAvatarUrl: provider?.avatarUrl,
+        providerPhone: provider?.phone,
+        bookingCode: booking?.bookingCode,
         address: booking?.address,
       );
     } catch (_) {
@@ -295,6 +450,7 @@ class KhadeRepository extends ChangeNotifier {
       if (isLive) {
         await khadeApi.cancelBooking(bookingId);
         await _syncFromApi();
+        await refreshNotifications();
       } else {
         _cancelBookingLocal(bookingId);
       }
@@ -316,10 +472,18 @@ class KhadeRepository extends ChangeNotifier {
         providerEmoji: b.providerEmoji, serviceName: b.serviceName,
       );
     }).toList();
+    final b = bookingById(bookingId);
+    if (b != null) {
+      _prependNotification(
+        title: 'Booking Cancelled',
+        body: '${b.bookingCode} with ${b.providerName} was cancelled',
+        emoji: '✕',
+      );
+    }
     notifyListeners();
   }
 
-  List<ProviderModel> get featured => providers.where((p) => p.featured).toList();
+  List<ProviderModel> get featured => featuredNearYou;
 
   List<ProviderModel> byCategory(String? label) {
     if (label == null || label == 'All') return providers;
@@ -338,7 +502,7 @@ class KhadeRepository extends ChangeNotifier {
   ProviderModel? providerById(int id) {
     try {
       final p = providers.firstWhere((p) => p.id == id);
-      return ProviderModel(
+      return _withDistance(ProviderModel(
         id: p.id,
         name: p.name,
         category: p.category,
@@ -355,26 +519,44 @@ class KhadeRepository extends ChangeNotifier {
         gradientEnd: p.gradientEnd,
         imageUrl: p.imageUrl,
         avatarUrl: p.avatarUrl,
+        latitude: p.latitude,
+        longitude: p.longitude,
+        phone: p.phone,
         services: _servicesByProvider[id] ?? [],
-      );
+      ));
     } catch (_) {
       return null;
     }
+  }
+
+  int get _activeUserId => AuthService.instance.authUser?.id ?? ApiConfig.defaultUserId;
+
+  Future<void> syncAfterAuth(UserModel authUser) async {
+    user = authUser;
+    notifyListeners();
+    await _syncFromApi();
   }
 
   Future<void> initialize() async {
     isLoading = true;
     lastError = null;
     notifyListeners();
+    await AuthService.instance.loadSession();
+    if (AuthService.instance.authUser != null) {
+      user = AuthService.instance.authUser;
+    }
     await _loadEmbedded();
+    await loadSavedLocation();
     notifyListeners();
-    await updateUserLocation();
     await _syncFromApi();
     isLoading = false;
     notifyListeners();
   }
 
-  Future<void> refresh() => _syncFromApi();
+  Future<void> refresh() async {
+    await updateUserLocation();
+    await _syncFromApi();
+  }
 
   Future<void> _loadEmbedded() async {
     try {
@@ -390,18 +572,29 @@ class KhadeRepository extends ChangeNotifier {
     try {
       final ok = await khadeApi.healthCheck();
       if (!ok) throw Exception('Cannot reach $apiUrl');
-      final bootstrap = await khadeApi.getBootstrap();
+      final bootstrap = await khadeApi.getBootstrap(userId: _activeUserId, lat: userLat, lng: userLng);
       _applyBootstrap(bootstrap);
+      if (AuthService.instance.authUser != null) {
+        user = AuthService.instance.authUser;
+      }
+      if (hasRealLocation) _recalculateProviderDistances();
       try {
-        adminStats = await khadeApi.getAdminStats();
+        if (user?.isAdmin == true && AuthService.instance.isLoggedIn) {
+          adminStats = await khadeApi.getAdminDashboard();
+        } else {
+          adminStats = await khadeApi.getAdminStats();
+        }
       } catch (_) {
         _computeAdminStats();
       }
       isLive = true;
       lastError = null;
+      _startNotificationPolling();
+      await refreshNotifications();
     } catch (e) {
       isLive = false;
       lastError = e.toString();
+      _stopNotificationPolling();
       _computeAdminStats();
     }
     notifyListeners();
@@ -464,6 +657,7 @@ class KhadeRepository extends ChangeNotifier {
             providers.take(user?.savedProviders ?? 7).map((p) => p.id),
       );
     }
+    _recalculateProviderDistances();
   }
 
   void _defaultCategories() {
@@ -485,6 +679,7 @@ class KhadeRepository extends ChangeNotifier {
     required String paymentMethod,
     String locationType = 'home',
     String? address,
+    String? note,
   }) async {
     try {
       if (paymentMethod == 'wallet') {
@@ -512,10 +707,14 @@ class KhadeRepository extends ChangeNotifier {
           serviceId: serviceId,
           scheduledAt: scheduledAt,
           locationType: locationType,
-          address: address,
+          address: address ?? (locationType == 'home' ? userAddress : null),
+          destLat: locationType == 'home' ? userLat : null,
+          destLng: locationType == 'home' ? userLng : null,
           paymentMethod: paymentMethod,
+          note: note,
         );
         await _syncFromApi();
+        await refreshNotifications();
         return result;
       }
 
@@ -568,8 +767,14 @@ class KhadeRepository extends ChangeNotifier {
           walletBalance: newBal, bookingsCount: user!.bookingsCount,
           savedProviders: user!.savedProviders, memberSince: user!.memberSince,
         );
+        await refreshNotifications();
       } else {
         _creditWalletLocal(amount, 'Wallet top-up via Paystack');
+        _prependNotification(
+          title: 'Wallet Topped Up',
+          body: '₦${amount.toString()} added to your wallet',
+          emoji: '💳',
+        );
       }
       notifyListeners();
       return true;
@@ -637,6 +842,11 @@ class KhadeRepository extends ChangeNotifier {
       providerEmoji: provider?.emoji ?? '💄',
       serviceName: service.name,
     ));
+    _prependNotification(
+      title: 'Booking Confirmed',
+      body: '$code with ${provider?.name ?? 'Provider'} is confirmed',
+      emoji: '✓',
+    );
     notifyListeners();
     final fee = (totalAmount * 0.1).round();
     return CreateBookingResult(id: bookings.length, bookingCode: code, totalAmount: totalAmount, serviceFee: fee);

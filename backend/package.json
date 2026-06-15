@@ -14,11 +14,16 @@
     "supplement:catalog": "node scripts/supplement-catalog.js",
     "rescan:videos": "node scripts/rescan-video-catalog.js",
     "import:providers": "node scripts/import-real-providers.js",
-    "bundle:data": "node scripts/bundle-deploy-data.js"
+    "seed:providers": "node scripts/seed-24-providers.js && node scripts/import-real-providers.js && node scripts/seed-feed-content.js",
+    "bundle:data": "node scripts/bundle-deploy-data.js",
+    "migrate:supabase": "node scripts/migrate-to-supabase.js"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.108.2",
+    "bcryptjs": "^3.0.3",
     "cors": "^2.8.5",
-    "express": "^4.21.2"
+    "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.3"
   },
   "engines": {
     "node": ">=18"

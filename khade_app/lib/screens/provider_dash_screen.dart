@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../models/models.dart';
+import '../services/auth_service.dart';
+import '../services/khade_api.dart';
+import '../services/provider_gps_service.dart';
 import '../services/khade_repository.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_theme.dart';
@@ -9,8 +12,9 @@ import '../widgets/connection_banner.dart';
 import '../widgets/khade_image.dart';
 
 class ProviderDashScreen extends StatefulWidget {
-  const ProviderDashScreen({super.key, this.providerId = 1});
-  final int providerId;
+  const ProviderDashScreen({super.key, this.providerId});
+
+  final int? providerId;
 
   @override
   State<ProviderDashScreen> createState() => _ProviderDashScreenState();
@@ -18,6 +22,52 @@ class ProviderDashScreen extends StatefulWidget {
 
 class _ProviderDashScreenState extends State<ProviderDashScreen> {
   int _tab = 0;
+  Map<String, dynamic> _earnings = {};
+  bool _sharingGps = false;
+
+  int get _providerId => widget.providerId ?? AuthService.instance.authUser?.providerId ?? 1;
+
+  @override
+  void initState() {
+    super.initState();
+    _sharingGps = ProviderGpsService.instance.isSharing;
+    _loadEarnings();
+  }
+
+  Future<void> _toggleGps() async {
+    if (_sharingGps) {
+      ProviderGpsService.instance.stopSharing();
+      setState(() => _sharingGps = false);
+      return;
+    }
+    final ok = await ProviderGpsService.instance.startSharing();
+    if (!mounted) return;
+    if (!ok) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Location permission required for live tracking'), backgroundColor: AppColors.redDark),
+      );
+      return;
+    }
+    setState(() => _sharingGps = true);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Live GPS sharing on — customers see your position'), backgroundColor: AppColors.matcha),
+    );
+  }
+
+  @override
+  void dispose() {
+    if (_sharingGps) ProviderGpsService.instance.stopSharing();
+    super.dispose();
+  }
+
+  Future<void> _loadEarnings() async {
+    try {
+      if (KhadeRepository.instance.isLive && AuthService.instance.authUser?.isProvider == true) {
+        _earnings = await khadeApi.getProviderEarnings();
+        if (mounted) setState(() {});
+      }
+    } catch (_) {}
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -25,11 +75,11 @@ class _ProviderDashScreenState extends State<ProviderDashScreen> {
       listenable: KhadeRepository.instance,
       builder: (context, _) {
         final repo = KhadeRepository.instance;
-        final provider = repo.providerById(widget.providerId);
-        final appts = repo.bookingsForProvider(widget.providerId).where((b) => b.status == 'upcoming').toList();
-        final posts = repo.feedForProvider(widget.providerId);
-        final gross = appts.fold<int>(0, (sum, b) => sum + b.totalAmount);
-        final net = (gross * 0.9).round();
+        final provider = repo.providerById(_providerId);
+        final appts = repo.bookingsForProvider(_providerId).where((b) => b.status == 'upcoming').toList();
+        final posts = repo.feedForProvider(_providerId);
+        final gross = (_earnings['gross'] as int?) ?? appts.fold<int>(0, (sum, b) => sum + b.totalAmount);
+        final net = (_earnings['net'] as int?) ?? (gross * 0.9).round();
 
         if (provider == null) {
           return Scaffold(backgroundColor: AppColors.cream, body: const Center(child: Text('Provider not found')));
@@ -76,8 +126,38 @@ class _ProviderDashScreenState extends State<ProviderDashScreen> {
               const Padding(padding: EdgeInsets.fromLTRB(20, 8, 20, 0), child: ConnectionBanner()),
               Padding(
                 padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+                child: Material(
+                  color: _sharingGps ? AppColors.matchaPale : AppColors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  child: InkWell(
+                    onTap: _toggleGps,
+                    borderRadius: BorderRadius.circular(12),
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Row(
+                        children: [
+                          Icon(_sharingGps ? Icons.gps_fixed : Icons.gps_off, color: AppColors.matcha),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(_sharingGps ? 'Live GPS on' : 'Share live location', style: AppTheme.sans(13, weight: FontWeight.w500)),
+                                Text('Customers see you on the map when on the way', style: AppTheme.sans(10, color: AppColors.soft)),
+                              ],
+                            ),
+                          ),
+                          Switch(value: _sharingGps, onChanged: (_) => _toggleGps(), activeThumbColor: AppColors.matcha),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
                 child: _ViewSwitcher(
-                  labels: const ['Appointments', 'My Posts', 'Earnings'],
+                  labels: const ['Appointments', 'My Posts', 'Earnings', 'Calendar'],
                   active: _tab,
                   onChanged: (i) => setState(() => _tab = i),
                 ),
@@ -86,9 +166,10 @@ class _ProviderDashScreenState extends State<ProviderDashScreen> {
                 child: IndexedStack(
                   index: _tab,
                   children: [
-                    _AppointmentsTab(appts: appts),
+                    _AppointmentsTab(appts: appts, onComplete: _completeBooking),
                     _PostsTab(posts: posts),
-                    _EarningsTab(gross: gross > 0 ? gross : 284000, net: net > 0 ? net : 255600),
+                    _EarningsTab(gross: gross > 0 ? gross : 284000, net: net > 0 ? net : 255600, onWithdraw: _withdraw),
+                    _CalendarTab(providerId: _providerId),
                   ],
                 ),
               ),
@@ -97,6 +178,28 @@ class _ProviderDashScreenState extends State<ProviderDashScreen> {
         );
       },
     );
+  }
+
+  Future<void> _completeBooking(int id) async {
+    try {
+      await khadeApi.completeBooking(id);
+      await KhadeRepository.instance.refresh();
+      await _loadEarnings();
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Booking marked complete'), backgroundColor: AppColors.matcha));
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e'), backgroundColor: AppColors.redDark));
+    }
+  }
+
+  Future<void> _withdraw() async {
+    try {
+      final bal = (_earnings['availableBalance'] as int?) ?? 255600;
+      await khadeApi.requestPayout(amount: bal);
+      await _loadEarnings();
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Withdrawal submitted — pending admin approval'), backgroundColor: AppColors.matcha));
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e'), backgroundColor: AppColors.redDark));
+    }
   }
 }
 
@@ -161,8 +264,9 @@ class _PStat extends StatelessWidget {
 }
 
 class _AppointmentsTab extends StatelessWidget {
-  const _AppointmentsTab({required this.appts});
+  const _AppointmentsTab({required this.appts, this.onComplete});
   final List appts;
+  final Future<void> Function(int id)? onComplete;
 
   @override
   Widget build(BuildContext context) {
@@ -182,6 +286,7 @@ class _AppointmentsTab extends StatelessWidget {
             service: b.serviceName,
             loc: b.locationType == 'home' ? 'At Client Location' : 'At Salon',
             price: formatNaira(b.totalAmount),
+            onComplete: onComplete != null ? () => onComplete!(b.id) : null,
           ),
       ],
     );
@@ -203,8 +308,9 @@ class _AppointmentsTab extends StatelessWidget {
 }
 
 class _ApptCard extends StatelessWidget {
-  const _ApptCard({required this.time, required this.ampm, required this.client, required this.service, required this.loc, required this.price});
+  const _ApptCard({required this.time, required this.ampm, required this.client, required this.service, required this.loc, required this.price, this.onComplete});
   final String time, ampm, client, service, loc, price;
+  final VoidCallback? onComplete;
 
   @override
   Widget build(BuildContext context) {
@@ -240,6 +346,8 @@ class _ApptCard extends StatelessWidget {
             ),
           ),
           Text(price, style: AppTheme.sans(14, weight: FontWeight.w500)),
+          if (onComplete != null)
+            IconButton(icon: const Icon(Icons.check_circle_outline, color: AppColors.matcha), onPressed: onComplete, tooltip: 'Mark complete'),
         ],
       ),
     );
@@ -297,9 +405,10 @@ class _PostPreview extends StatelessWidget {
 }
 
 class _EarningsTab extends StatelessWidget {
-  const _EarningsTab({required this.gross, required this.net});
+  const _EarningsTab({required this.gross, required this.net, this.onWithdraw});
   final int gross;
   final int net;
+  final VoidCallback? onWithdraw;
 
   @override
   Widget build(BuildContext context) {
@@ -317,9 +426,9 @@ class _EarningsTab extends StatelessWidget {
               Text(formatNaira(net), style: AppTheme.serif(32, color: AppColors.white)),
               const SizedBox(height: 12),
               FilledButton(
-                onPressed: () {
+                onPressed: onWithdraw ?? () {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Withdrawal initiated — funds in 24hrs (mock)'), backgroundColor: AppColors.matcha),
+                    const SnackBar(content: Text('Sign in as provider to withdraw'), backgroundColor: AppColors.matcha),
                   );
                 },
                 style: FilledButton.styleFrom(
@@ -372,6 +481,43 @@ class _EarningsTab extends StatelessWidget {
           Text(value, style: AppTheme.sans(12, color: red ? AppColors.redDark : AppColors.dark)),
         ],
       ),
+    );
+  }
+}
+
+class _CalendarTab extends StatelessWidget {
+  const _CalendarTab({required this.providerId});
+  final int providerId;
+
+  @override
+  Widget build(BuildContext context) {
+    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const slots = ['09:00', '10:00', '11:00', '14:00', '15:00', '16:00'];
+    return ListView(
+      padding: const EdgeInsets.all(20),
+      children: [
+        Text('AVAILABILITY', style: AppTheme.sans(11, color: AppColors.soft).copyWith(letterSpacing: 1)),
+        Text('Clients only see open slots when booking', style: AppTheme.sans(11, color: AppColors.mid)),
+        const SizedBox(height: 12),
+        for (final day in days)
+          Container(
+            margin: const EdgeInsets.only(bottom: 10),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: AppColors.border)),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(day, style: AppTheme.sans(12, weight: FontWeight.w600)),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: slots.map((s) => Chip(label: Text(s, style: AppTheme.sans(10)), backgroundColor: AppColors.matchaPale)).toList(),
+                ),
+              ],
+            ),
+          ),
+      ],
     );
   }
 }

@@ -7,9 +7,142 @@ class KhadeApi {
   KhadeApi({http.Client? client}) : _client = client ?? http.Client();
 
   final http.Client _client;
+  String? _token;
+
+  void setToken(String? token) => _token = token;
+
+  Map<String, String> get _jsonHeaders => {
+        'Content-Type': 'application/json',
+        if (_token != null) 'Authorization': 'Bearer $_token',
+      };
+
+  int get userId => ApiConfig.defaultUserId;
 
   Uri _uri(String path, [Map<String, String>? query]) =>
       Uri.parse('${ApiConfig.baseUrl}$path').replace(queryParameters: query);
+
+  Future<AuthResult> login({required String email, required String password}) async {
+    final res = await _client.post(_uri('/api/auth/login'), headers: _jsonHeaders, body: jsonEncode({'email': email, 'password': password}));
+    _check(res);
+    return AuthResult.fromJson(jsonDecode(res.body)['data'] as Map<String, dynamic>);
+  }
+
+  Future<AuthResult> register({
+    required String email,
+    required String password,
+    required String name,
+    String role = 'customer',
+    String city = 'Abuja',
+    String? phone,
+    String? businessName,
+    String? cacNumber,
+    String visitTypes = 'both',
+    String area = 'Wuse II',
+  }) async {
+    final res = await _client.post(
+      _uri('/api/auth/register'),
+      headers: _jsonHeaders,
+      body: jsonEncode({
+        'email': email,
+        'password': password,
+        'name': name,
+        'role': role,
+        'city': city,
+        if (phone != null) 'phone': phone,
+        if (businessName != null) 'businessName': businessName,
+        if (cacNumber != null) 'cacNumber': cacNumber,
+        'visitTypes': visitTypes,
+        'area': area,
+      }),
+    );
+    _check(res);
+    return AuthResult.fromJson(jsonDecode(res.body)['data'] as Map<String, dynamic>);
+  }
+
+  Future<UserModel> getMe() async {
+    final res = await _client.get(_uri('/api/auth/me'), headers: _jsonHeaders);
+    _check(res);
+    return UserModel.fromJson(jsonDecode(res.body)['data'] as Map<String, dynamic>);
+  }
+
+  Future<List<String>> getProviderSlots(int providerId, String date) async {
+    final res = await _client.get(_uri('/api/provider/$providerId/slots', {'date': date}));
+    _check(res);
+    return (jsonDecode(res.body)['data']['slots'] as List<dynamic>).cast<String>();
+  }
+
+  Future<Map<String, dynamic>> getProviderEarnings() async {
+    final res = await _client.get(_uri('/api/provider/earnings'), headers: _jsonHeaders);
+    _check(res);
+    return jsonDecode(res.body)['data'] as Map<String, dynamic>;
+  }
+
+  Future<void> completeBooking(int bookingId) async {
+    final res = await _client.patch(
+      _uri('/api/provider/bookings/$bookingId/status'),
+      headers: _jsonHeaders,
+      body: jsonEncode({'status': 'completed'}),
+    );
+    _check(res);
+  }
+
+  Future<void> requestPayout({required int amount, String bankName = 'Access Bank', String accountNumber = '****'}) async {
+    final res = await _client.post(
+      _uri('/api/provider/payouts'),
+      headers: _jsonHeaders,
+      body: jsonEncode({'amount': amount, 'bankName': bankName, 'accountNumber': accountNumber}),
+    );
+    _check(res);
+  }
+
+  Future<void> onboardProvider({
+    required String categorySlug,
+    required List<Map<String, dynamic>> services,
+    String visitTypes = 'both',
+    String area = 'Wuse II',
+    String? bio,
+  }) async {
+    final res = await _client.post(
+      _uri('/api/provider/onboard'),
+      headers: _jsonHeaders,
+      body: jsonEncode({'categorySlug': categorySlug, 'services': services, 'visitTypes': visitTypes, 'area': area, 'bio': bio}),
+    );
+    _check(res);
+  }
+
+  Future<Map<String, dynamic>> getAdminDashboard() async {
+    final res = await _client.get(_uri('/api/admin/dashboard'), headers: _jsonHeaders);
+    _check(res);
+    return jsonDecode(res.body)['data'] as Map<String, dynamic>;
+  }
+
+  Future<List<Map<String, dynamic>>> getAdminProviders() async {
+    final res = await _client.get(_uri('/api/admin/providers'), headers: _jsonHeaders);
+    _check(res);
+    return (jsonDecode(res.body)['data'] as List<dynamic>).cast<Map<String, dynamic>>();
+  }
+
+  Future<List<Map<String, dynamic>>> getAdminBookings() async {
+    final res = await _client.get(_uri('/api/admin/bookings'), headers: _jsonHeaders);
+    _check(res);
+    return (jsonDecode(res.body)['data'] as List<dynamic>).cast<Map<String, dynamic>>();
+  }
+
+  Future<List<Map<String, dynamic>>> getAdminPayouts() async {
+    final res = await _client.get(_uri('/api/admin/payouts'), headers: _jsonHeaders);
+    _check(res);
+    return (jsonDecode(res.body)['data'] as List<dynamic>).cast<Map<String, dynamic>>();
+  }
+
+  Future<void> updateProviderStatus(int id, String status) async {
+    final res = await _client.patch(_uri('/api/admin/providers/$id/status'), headers: _jsonHeaders, body: jsonEncode({'status': status}));
+    _check(res);
+  }
+
+  Future<void> approvePayout(int id, {String status = 'approved'}) async {
+    final res = await _client.patch(_uri('/api/admin/payouts/$id'), headers: _jsonHeaders, body: jsonEncode({'status': status}));
+    _check(res);
+  }
 
   Future<List<ProviderModel>> getProviders({bool featured = false, String? category}) async {
     final query = <String, String>{};
@@ -50,12 +183,15 @@ class KhadeApi {
     required String scheduledAt,
     String locationType = 'home',
     String? address,
+    double? destLat,
+    double? destLng,
     String paymentMethod = 'paystack',
     int userId = ApiConfig.defaultUserId,
+    String? note,
   }) async {
     final res = await _client.post(
       _uri('/api/bookings'),
-      headers: {'Content-Type': 'application/json'},
+      headers: _jsonHeaders,
       body: jsonEncode({
         'userId': userId,
         'providerId': providerId,
@@ -63,7 +199,10 @@ class KhadeApi {
         'scheduledAt': scheduledAt,
         'locationType': locationType,
         'address': address,
+        if (destLat != null) 'destLat': destLat,
+        if (destLng != null) 'destLng': destLng,
         'paymentMethod': paymentMethod,
+        if (note != null && note.isNotEmpty) 'note': note,
       }),
     );
     _check(res);
@@ -124,8 +263,22 @@ class KhadeApi {
     return list.map((e) => NotificationModel.fromJson(e as Map<String, dynamic>)).toList();
   }
 
-  Future<Map<String, dynamic>> getBootstrap({int userId = ApiConfig.defaultUserId}) async {
-    final res = await _client.get(_uri('/api/bootstrap', {'userId': '$userId'}));
+  Future<void> markAllNotificationsRead({int userId = ApiConfig.defaultUserId}) async {
+    final res = await _client.post(
+      _uri('/api/notifications/mark-all-read'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'userId': userId}),
+    );
+    _check(res);
+  }
+
+  Future<Map<String, dynamic>> getBootstrap({int userId = ApiConfig.defaultUserId, double? lat, double? lng}) async {
+    final query = <String, String>{'userId': '$userId'};
+    if (lat != null && lng != null) {
+      query['lat'] = lat.toString();
+      query['lng'] = lng.toString();
+    }
+    final res = await _client.get(_uri('/api/bootstrap', query), headers: _token != null ? {'Authorization': 'Bearer $_token'} : null);
     _check(res);
     return jsonDecode(res.body)['data'] as Map<String, dynamic>;
   }
@@ -196,6 +349,152 @@ class KhadeApi {
     final res = await _client.get(_uri('/api/tracking/$bookingId'));
     _check(res);
     return TrackingSnapshot.fromJson(jsonDecode(res.body)['data'] as Map<String, dynamic>);
+  }
+
+  Future<SyncSnapshot> getSyncSnapshot({int? userId, String? since}) async {
+    final query = <String, String>{'userId': '${userId ?? this.userId}'};
+    if (since != null) query['since'] = since;
+    final res = await _client.get(_uri('/api/sync/snapshot', query), headers: _jsonHeaders);
+    _check(res);
+    return SyncSnapshot.fromJson(jsonDecode(res.body)['data'] as Map<String, dynamic>);
+  }
+
+  Future<List<ChatMessageModel>> getBookingMessages(int bookingId) async {
+    final res = await _client.get(_uri('/api/bookings/$bookingId/messages'), headers: _jsonHeaders);
+    _check(res);
+    return (jsonDecode(res.body)['data'] as List).map((e) => ChatMessageModel.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  Future<ChatMessageModel> sendBookingMessage({
+    required int bookingId,
+    required String body,
+    int? userId,
+    String? senderName,
+  }) async {
+    final res = await _client.post(
+      _uri('/api/bookings/$bookingId/messages'),
+      headers: _jsonHeaders,
+      body: jsonEncode({'body': body, if (userId != null) 'userId': userId, if (senderName != null) 'senderName': senderName}),
+    );
+    _check(res);
+    return ChatMessageModel.fromJson(jsonDecode(res.body)['data'] as Map<String, dynamic>);
+  }
+
+  Future<void> uploadProviderLocation({required double lat, required double lng}) async {
+    final res = await _client.post(
+      _uri('/api/provider/location'),
+      headers: _jsonHeaders,
+      body: jsonEncode({'lat': lat, 'lng': lng}),
+    );
+    _check(res);
+  }
+
+  Future<Map<String, dynamic>> createGroupBooking({
+    required String title,
+    required int guestCount,
+    required int providerId,
+    required int serviceId,
+    String? address,
+    String? scheduledAt,
+    String? note,
+    int? userId,
+  }) async {
+    final res = await _client.post(
+      _uri('/api/groups'),
+      headers: _jsonHeaders,
+      body: jsonEncode({
+        'title': title,
+        'guestCount': guestCount,
+        'providerId': providerId,
+        'serviceId': serviceId,
+        if (address != null) 'address': address,
+        if (scheduledAt != null) 'scheduledAt': scheduledAt,
+        if (note != null) 'note': note,
+        if (userId != null) 'userId': userId,
+      }),
+    );
+    _check(res);
+    return jsonDecode(res.body)['data'] as Map<String, dynamic>;
+  }
+
+  Future<void> registerFcmToken({required int userId, required String token, String platform = 'android'}) async {
+    final res = await _client.post(
+      _uri('/api/devices/fcm-token'),
+      headers: _jsonHeaders,
+      body: jsonEncode({'userId': userId, 'token': token, 'platform': platform}),
+    );
+    _check(res);
+  }
+
+  Future<List<Map<String, dynamic>>> getCrmClients() async {
+    final res = await _client.get(_uri('/api/provider/crm/clients'), headers: _jsonHeaders);
+    _check(res);
+    return (jsonDecode(res.body)['data'] as List).cast<Map<String, dynamic>>();
+  }
+
+  Future<void> addCrmClient({required String name, String? phone, String? notes}) async {
+    final res = await _client.post(
+      _uri('/api/provider/crm/clients'),
+      headers: _jsonHeaders,
+      body: jsonEncode({'name': name, if (phone != null) 'phone': phone, if (notes != null) 'notes': notes}),
+    );
+    _check(res);
+  }
+
+  Future<List<Map<String, dynamic>>> getProviderStaff() async {
+    final res = await _client.get(_uri('/api/provider/staff'), headers: _jsonHeaders);
+    _check(res);
+    return (jsonDecode(res.body)['data'] as List).cast<Map<String, dynamic>>();
+  }
+
+  Future<void> addProviderStaff({required String name, required String role, String? phone}) async {
+    final res = await _client.post(
+      _uri('/api/provider/staff'),
+      headers: _jsonHeaders,
+      body: jsonEncode({'name': name, 'role': role, if (phone != null) 'phone': phone}),
+    );
+    _check(res);
+  }
+
+  Future<List<Map<String, dynamic>>> getProviderInventory() async {
+    final res = await _client.get(_uri('/api/provider/inventory'), headers: _jsonHeaders);
+    _check(res);
+    return (jsonDecode(res.body)['data'] as List).cast<Map<String, dynamic>>();
+  }
+
+  Future<void> addInventoryItem({required String name, int quantity = 0, int reorderLevel = 5}) async {
+    final res = await _client.post(
+      _uri('/api/provider/inventory'),
+      headers: _jsonHeaders,
+      body: jsonEncode({'name': name, 'quantity': quantity, 'reorderLevel': reorderLevel}),
+    );
+    _check(res);
+  }
+
+  Future<Map<String, dynamic>> sendCampaign({required String title, required String message, String channel = 'sms'}) async {
+    final res = await _client.post(
+      _uri('/api/provider/campaigns'),
+      headers: _jsonHeaders,
+      body: jsonEncode({'title': title, 'message': message, 'channel': channel}),
+    );
+    _check(res);
+    final body = jsonDecode(res.body);
+    return {'campaign': body['data'], 'recipients': (body['meta'] as Map?)?['recipients'] ?? 0};
+  }
+
+  Future<void> applyCapitalLoan({required int amount, String? purpose}) async {
+    final res = await _client.post(
+      _uri('/api/provider/capital/apply'),
+      headers: _jsonHeaders,
+      body: jsonEncode({'amount': amount, if (purpose != null) 'purpose': purpose}),
+    );
+    _check(res);
+  }
+
+  Future<List<Map<String, dynamic>>> getCapitalLoans() async {
+    final res = await _client.get(_uri('/api/provider/capital'), headers: _jsonHeaders);
+    _check(res);
+    return (jsonDecode(res.body)['data'] as List).cast<Map<String, dynamic>>();
   }
 
   Future<bool> healthCheck() async {

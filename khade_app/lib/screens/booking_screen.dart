@@ -21,6 +21,13 @@ class _BookingScreenState extends State<BookingScreen> {
   bool _atHome = true;
   int _selectedDate = 1;
   int _selectedTime = 2;
+  final _noteController = TextEditingController();
+
+  @override
+  void dispose() {
+    _noteController.dispose();
+    super.dispose();
+  }
 
   final _dates = [('Mon', '16'), ('Tue', '17'), ('Wed', '18'), ('Thu', '19'), ('Fri', '20'), ('Sat', '21')];
   final _times = ['8:00 AM', '9:00 AM', '10:30 AM', '12:00 PM', '1:30 PM', '3:00 PM', '4:30 PM', '6:00 PM', '7:30 PM'];
@@ -105,12 +112,18 @@ class _BookingScreenState extends State<BookingScreen> {
                   children: [
                     _section('Customer Reviews', _reviewsSection(provider)),
                     _section('Choose Service', _serviceOptions(services)),
-                    _section('Where?', _locationToggle()),
+                    _section('Where?', _locationToggle(provider)),
                     _section('Pick a Date', _dateTimePicker()),
-                    _section('Add a Note (optional)', Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(color: AppColors.cream, border: Border.all(color: AppColors.border), borderRadius: BorderRadius.circular(10)),
-                      child: Text('Any special requests for your provider?', style: AppTheme.sans(12, color: const Color(0xFFBBBBBB))),
+                    _section('Add a Note (optional)', TextField(
+                      controller: _noteController,
+                      maxLines: 3,
+                      decoration: InputDecoration(
+                        hintText: 'Any special requests for your provider?',
+                        hintStyle: AppTheme.sans(12, color: const Color(0xFFBBBBBB)),
+                        filled: true,
+                        fillColor: AppColors.cream,
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.border)),
+                      ),
                     )),
                     const SizedBox(height: 16),
                   ],
@@ -134,7 +147,7 @@ class _BookingScreenState extends State<BookingScreen> {
                       PrimaryButton(
                         label: 'Proceed to Payment →',
                         onPressed: () => context.push(
-                          '/payment?providerId=${provider.id}&serviceId=${service.id}&scheduledAt=$_scheduledAt&locationType=${_atHome ? 'home' : 'salon'}&serviceName=${Uri.encodeComponent(service.name)}&providerName=${Uri.encodeComponent(provider.name)}&price=${service.price}',
+                          '/payment?providerId=${provider.id}&serviceId=${service.id}&scheduledAt=$_scheduledAt&locationType=${_atHome ? 'home' : 'salon'}&serviceName=${Uri.encodeComponent(service.name)}&providerName=${Uri.encodeComponent(provider.name)}&price=${service.price}&note=${Uri.encodeComponent(_noteController.text.trim())}',
                         ),
                       ),
                     ],
@@ -225,7 +238,7 @@ class _BookingScreenState extends State<BookingScreen> {
     );
   }
 
-  Widget _locationToggle() {
+  Widget _locationToggle(ProviderModel provider) {
     return Column(
       children: [
         Container(
@@ -241,7 +254,23 @@ class _BookingScreenState extends State<BookingScreen> {
           width: double.infinity,
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(color: AppColors.cream, borderRadius: BorderRadius.circular(10), border: Border.all(color: AppColors.border)),
-          child: Text('📍 Plot 5, Abubakar Tafawa Balewa Way, Maitama, Abuja', style: AppTheme.sans(12, color: AppColors.mid)),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  _atHome
+                      ? '📍 ${KhadeRepository.instance.userAddress}'
+                      : '📍 ${provider.area}, Abuja · ${provider.distanceLabel} · ${provider.etaLabel}',
+                  style: AppTheme.sans(12, color: AppColors.mid),
+                ),
+              ),
+              if (_atHome)
+                TextButton(
+                  onPressed: () => context.push('/location-picker'),
+                  child: Text('Adjust pin', style: AppTheme.sans(11, color: AppColors.matcha)),
+                ),
+            ],
+          ),
         ),
       ],
     );

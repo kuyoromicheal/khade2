@@ -17,6 +17,7 @@ class PaymentScreen extends StatefulWidget {
     this.serviceName = 'Full Glam Makeup',
     this.providerName = 'Zara Beauty Studio',
     this.price = 12000,
+    this.note,
   });
 
   final int providerId;
@@ -26,6 +27,7 @@ class PaymentScreen extends StatefulWidget {
   final String serviceName;
   final String providerName;
   final int price;
+  final String? note;
 
   @override
   State<PaymentScreen> createState() => _PaymentScreenState();
@@ -92,14 +94,17 @@ class _PaymentScreenState extends State<PaymentScreen> {
         }
       }
 
+      final homeAddress = widget.locationType == 'home' ? repo.userAddress : null;
+
       final result = await repo.completePaymentAndBook(
         providerId: widget.providerId,
         serviceId: widget.serviceId,
         scheduledAt: widget.scheduledAt,
         locationType: widget.locationType,
-        address: widget.locationType == 'home' ? 'Plot 5, Abubakar Tafawa Balewa Way, Maitama, Abuja' : null,
+        address: homeAddress,
         totalAmount: _total,
         paymentMethod: _paymentMethod,
+        note: widget.note,
       );
 
       if (!mounted) return;

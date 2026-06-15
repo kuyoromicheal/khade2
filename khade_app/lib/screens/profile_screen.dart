@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../services/auth_service.dart';
 import '../services/khade_repository.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_theme.dart';
 import '../widgets/api_widgets.dart';
+import '../widgets/tier_badge.dart';
 import '../widgets/connection_banner.dart';
 
 class ProfileScreen extends StatelessWidget {
@@ -12,10 +14,12 @@ class ProfileScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: KhadeRepository.instance,
+      listenable: Listenable.merge([KhadeRepository.instance, AuthService.instance]),
       builder: (context, _) {
-        final user = KhadeRepository.instance.user;
-        final initials = user?.name.split(' ').map((w) => w.isNotEmpty ? w[0] : '').take(2).join() ?? 'AC';
+        final repo = KhadeRepository.instance;
+        final auth = AuthService.instance;
+        final user = auth.authUser ?? repo.user;
+        final initials = user?.name.split(' ').map((w) => w.isNotEmpty ? w[0] : '').take(2).join() ?? 'G';
 
         return Column(
           children: [
@@ -34,8 +38,14 @@ class ProfileScreen extends StatelessWidget {
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(user?.name ?? 'Adaeze Chukwu', style: AppTheme.serif(22, color: AppColors.white)),
-                            Text('${user?.city ?? 'Abuja'} · Member since ${user?.memberSince ?? 2024}', style: AppTheme.sans(11, color: Colors.white.withValues(alpha: 0.6))),
+                            Text(user?.name ?? 'Guest', style: AppTheme.serif(22, color: AppColors.white)),
+                            Text(
+                              auth.isLoggedIn
+                                  ? '${user?.city ?? 'Abuja'} · Member since ${user?.memberSince ?? 2024}'
+                                  : 'Browse as guest — sign in to book & save',
+                              style: AppTheme.sans(11, color: Colors.white.withValues(alpha: 0.6)),
+                            ),
+                            if (auth.isLoggedIn) ...[const SizedBox(height: 6), TierBadge(tier: user?.tier ?? 'Bronze', compact: true)],
                           ],
                         ),
                       ],
@@ -47,7 +57,7 @@ class ProfileScreen extends StatelessWidget {
                         const SizedBox(width: 10),
                         _StatBox(value: '${user?.savedProviders ?? 0}', label: 'Providers Saved'),
                         const SizedBox(width: 10),
-                        _StatBox(value: user?.tier ?? 'Gold', label: 'Tier ✦'),
+                        _StatBox(value: user?.tier ?? 'Bronze', label: 'Tier'),
                       ],
                     ),
                   ],
@@ -78,19 +88,48 @@ class ProfileScreen extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 12),
-                      FilledButton.icon(
-                        onPressed: () => context.push('/provider-dash'),
-                        icon: const Icon(Icons.work_outline, size: 18),
-                        label: const Text('Switch to Provider View'),
-                        style: FilledButton.styleFrom(backgroundColor: AppColors.dark, padding: const EdgeInsets.symmetric(vertical: 14)),
-                      ),
-                      const SizedBox(height: 8),
-                      FilledButton.icon(
-                        onPressed: () => context.push('/admin'),
-                        icon: const Icon(Icons.shield_outlined, size: 18),
-                        label: const Text('Admin Dashboard'),
-                        style: FilledButton.styleFrom(backgroundColor: AppColors.matchaDeep, padding: const EdgeInsets.symmetric(vertical: 14)),
-                      ),
+                      if (!auth.isLoggedIn)
+                        FilledButton.icon(
+                          onPressed: () => context.push('/login'),
+                          icon: const Icon(Icons.login, size: 18),
+                          label: const Text('Sign In / Create Account'),
+                          style: FilledButton.styleFrom(backgroundColor: AppColors.matcha, padding: const EdgeInsets.symmetric(vertical: 14)),
+                        )
+                      else ...[
+                        if (user?.isProvider == true)
+                          FilledButton.icon(
+                            onPressed: () => context.push('/provider-dash'),
+                            icon: const Icon(Icons.work_outline, size: 18),
+                            label: const Text('Provider Dashboard'),
+                            style: FilledButton.styleFrom(backgroundColor: AppColors.dark, padding: const EdgeInsets.symmetric(vertical: 14)),
+                          )
+                        else
+                          FilledButton.icon(
+                            onPressed: () => context.push('/provider-onboarding'),
+                            icon: const Icon(Icons.storefront_outlined, size: 18),
+                            label: const Text('Become a Provider'),
+                            style: FilledButton.styleFrom(backgroundColor: AppColors.dark, padding: const EdgeInsets.symmetric(vertical: 14)),
+                          ),
+                        if (user?.isAdmin == true) ...[
+                          const SizedBox(height: 8),
+                          FilledButton.icon(
+                            onPressed: () => context.push('/admin'),
+                            icon: const Icon(Icons.shield_outlined, size: 18),
+                            label: const Text('Admin Dashboard'),
+                            style: FilledButton.styleFrom(backgroundColor: AppColors.matchaDeep, padding: const EdgeInsets.symmetric(vertical: 14)),
+                          ),
+                        ],
+                        const SizedBox(height: 8),
+                        OutlinedButton.icon(
+                          onPressed: () async {
+                            await auth.logout();
+                            await repo.initialize();
+                            if (context.mounted) context.go('/home');
+                          },
+                          icon: const Icon(Icons.logout, size: 16),
+                          label: const Text('Sign Out'),
+                        ),
+                      ],
                     ],
                   ),
                 ),

@@ -3,10 +3,10 @@ import '../theme/app_colors.dart';
 import '../theme/app_theme.dart';
 
 class PrimaryButton extends StatelessWidget {
-  const PrimaryButton({super.key, required this.label, required this.onPressed, this.color});
+  const PrimaryButton({super.key, required this.label, this.onPressed, this.color});
 
   final String label;
-  final VoidCallback onPressed;
+  final VoidCallback? onPressed;
   final Color? color;
 
   @override

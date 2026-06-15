@@ -19,48 +19,82 @@ if (fs.existsSync(envPath)) {
 const express = require('express');
 const cors = require('cors');
 const api = require('./routes/api');
+const webhooks = require('./routes/webhooks.routes');
 const { registerMediaRoutes } = require('./media-proxy');
-const { load } = require('./database');
+const { load, isSupabase, save } = require('./database');
 
 const dataDir = path.join(__dirname, '..', 'data');
 if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
 
 require('../scripts/ensure-data');
 
-const data = load();
-if (data.providers.length === 0) {
-  require('./seed');
-}
+async function start() {
+  const data = await load();
+  if (data.providers.length === 0) {
+    await require('./seed')();
+  } else {
+    const { ensureDemoAccounts } = require('./routes/auth.routes');
+    await ensureDemoAccounts(data);
+    await save(data);
+  }
 
-const app = express();
-const PORT = process.env.PORT || 3001;
+  const app = express();
+  const PORT = process.env.PORT || 3001;
 
-app.use(cors());
-app.use(express.json());
+  app.use(cors());
 
-app.get('/health', (_req, res) => res.json({ status: 'ok', service: 'khade-api' }));
+  /** Paystack webhooks need raw JSON body for signature verification */
+  app.use('/api/webhooks', express.raw({ type: 'application/json' }), (req, _res, next) => {
+    if (Buffer.isBuffer(req.body)) {
+      try {
+        req.rawBody = req.body;
+        req.body = JSON.parse(req.body.toString('utf8'));
+      } catch (_) {
+        req.body = {};
+      }
+    }
+    next();
+  }, webhooks);
 
-registerMediaRoutes(app);
+  app.use(express.json());
 
-const mediaDir = path.join(__dirname, '..', 'public', 'media');
-if (fs.existsSync(mediaDir)) {
-  app.use('/media', express.static(mediaDir, { maxAge: '7d' }));
-}
+  app.get('/health', (_req, res) =>
+    res.json({ status: 'ok', service: 'khade-api', database: isSupabase ? 'supabase' : 'json' }),
+  );
 
-/** Paystack redirects here after payment — WebView detects this URL */
-app.get('/paystack/callback', (req, res) => {
-  const ref = req.query.reference || req.query.trxref || '';
-  res.send(`<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width"><title>Payment</title>
+  registerMediaRoutes(app);
+
+  const mediaDir = path.join(__dirname, '..', 'public', 'media');
+  if (fs.existsSync(mediaDir)) {
+    app.use('/media', express.static(mediaDir, { maxAge: '7d' }));
+  }
+
+  /** Paystack redirects here after payment — WebView detects this URL */
+  app.get('/paystack/callback', (req, res) => {
+    const ref = req.query.reference || req.query.trxref || '';
+    res.send(`<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width"><title>Payment</title>
 <style>body{font-family:sans-serif;text-align:center;padding:40px;background:#e8f0ea;color:#2d4a35}
 .ok{font-size:48px}h1{margin:16px 0}</style></head>
 <body><div class="ok">✓</div><h1>Payment Successful</h1><p>Reference: ${ref}</p><p>You can return to the Khade app.</p></body></html>`);
-});
+  });
 
-app.use('/api', api);
+  app.use('/api', api);
 
-app.use((_req, res) => res.status(404).json({ error: 'Not found' }));
+  app.use((err, _req, res, _next) => {
+    console.error(err);
+    res.status(500).json({ error: err.message || 'Server error' });
+  });
 
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Khade API running at http://localhost:${PORT}`);
-  console.log(`  Paystack:  ${process.env.PAYSTACK_SECRET_KEY ? 'configured' : 'MISSING — add PAYSTACK_SECRET_KEY to backend/.env'}`);
+  app.use((_req, res) => res.status(404).json({ error: 'Not found' }));
+
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`Khade API running at http://localhost:${PORT}`);
+    console.log(`  Database:  ${isSupabase ? 'Supabase' : 'JSON file'}`);
+    console.log(`  Paystack:  ${process.env.PAYSTACK_SECRET_KEY ? 'configured' : 'MISSING — add PAYSTACK_SECRET_KEY to backend/.env'}`);
+  });
+}
+
+start().catch((e) => {
+  console.error('Failed to start:', e);
+  process.exit(1);
 });

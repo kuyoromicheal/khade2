@@ -1,4 +1,5 @@
 import '../utils/media_url.dart';
+import '../utils/geo_utils.dart';
 
 class ProviderModel {
   const ProviderModel({
@@ -20,6 +21,7 @@ class ProviderModel {
     this.avatarUrl,
     this.latitude,
     this.longitude,
+    this.phone,
     this.services = const [],
   });
 
@@ -41,6 +43,7 @@ class ProviderModel {
   final String? avatarUrl;
   final double? latitude;
   final double? longitude;
+  final String? phone;
   final List<ServiceModel> services;
 
   factory ProviderModel.fromJson(Map<String, dynamic> j) => ProviderModel(
@@ -62,6 +65,7 @@ class ProviderModel {
         avatarUrl: j['avatarUrl'] as String?,
         latitude: (j['latitude'] as num?)?.toDouble(),
         longitude: (j['longitude'] as num?)?.toDouble(),
+        phone: j['phone'] as String?,
         services: (j['services'] as List<dynamic>?)
                 ?.map((e) => ServiceModel.fromJson(e as Map<String, dynamic>))
                 .toList() ??
@@ -70,6 +74,7 @@ class ProviderModel {
 
   String get priceLabel => 'From ₦${_formatNaira(priceFrom)}';
   String get distanceLabel => '${distanceKm}km';
+  String get etaLabel => '${etaFromDistanceKm(distanceKm)} min';
 
   static String _formatNaira(int n) {
     final s = n.toString();
@@ -314,6 +319,9 @@ class UserModel {
     required this.bookingsCount,
     required this.savedProviders,
     required this.memberSince,
+    this.email,
+    this.role = 'customer',
+    this.providerId,
   });
 
   final int id;
@@ -324,6 +332,13 @@ class UserModel {
   final int bookingsCount;
   final int savedProviders;
   final int memberSince;
+  final String? email;
+  final String role;
+  final int? providerId;
+
+  bool get isProvider => role == 'provider';
+  bool get isAdmin => role == 'admin';
+  bool get isGuest => role == 'guest';
 
   factory UserModel.fromJson(Map<String, dynamic> j) => UserModel(
         id: j['id'] as int,
@@ -334,6 +349,22 @@ class UserModel {
         bookingsCount: j['bookingsCount'] as int,
         savedProviders: j['savedProviders'] as int,
         memberSince: j['memberSince'] as int,
+        email: j['email'] as String?,
+        role: j['role'] as String? ?? 'customer',
+        providerId: j['providerId'] as int?,
+      );
+}
+
+class AuthResult {
+  const AuthResult({required this.token, required this.user, this.welcomeBonus});
+  final String token;
+  final UserModel user;
+  final int? welcomeBonus;
+
+  factory AuthResult.fromJson(Map<String, dynamic> j) => AuthResult(
+        token: j['token'] as String,
+        user: UserModel.fromJson(j['user'] as Map<String, dynamic>),
+        welcomeBonus: j['welcomeBonus'] as int?,
       );
 }
 
@@ -344,6 +375,7 @@ class NotificationModel {
     required this.body,
     required this.emoji,
     required this.createdAt,
+    this.read = false,
   });
 
   final int id;
@@ -351,6 +383,7 @@ class NotificationModel {
   final String body;
   final String? emoji;
   final String createdAt;
+  final bool read;
 
   factory NotificationModel.fromJson(Map<String, dynamic> j) => NotificationModel(
         id: j['id'] as int,
@@ -358,6 +391,16 @@ class NotificationModel {
         body: j['body'] as String,
         emoji: j['emoji'] as String?,
         createdAt: j['createdAt'] as String,
+        read: j['read'] == true || j['read'] == 1,
+      );
+
+  NotificationModel markRead() => NotificationModel(
+        id: id,
+        title: title,
+        body: body,
+        emoji: emoji,
+        createdAt: createdAt,
+        read: true,
       );
 }
 
@@ -411,6 +454,8 @@ class TrackingSnapshot {
     required this.progressStep,
     this.providerName,
     this.providerAvatarUrl,
+    this.providerPhone,
+    this.bookingCode,
     this.address,
   });
 
@@ -423,6 +468,8 @@ class TrackingSnapshot {
   final int progressStep;
   final String? providerName;
   final String? providerAvatarUrl;
+  final String? providerPhone;
+  final String? bookingCode;
   final String? address;
 
   factory TrackingSnapshot.fromJson(Map<String, dynamic> j) => TrackingSnapshot(
@@ -435,7 +482,69 @@ class TrackingSnapshot {
         progressStep: j['progressStep'] as int,
         providerName: j['providerName'] as String?,
         providerAvatarUrl: j['providerAvatarUrl'] as String?,
+        providerPhone: j['providerPhone'] as String?,
+        bookingCode: j['bookingCode'] as String?,
         address: j['address'] as String?,
+      );
+}
+
+class ChatMessageModel {
+  const ChatMessageModel({
+    required this.id,
+    required this.bookingId,
+    required this.senderId,
+    required this.senderName,
+    required this.body,
+    required this.createdAt,
+  });
+
+  final int id;
+  final int bookingId;
+  final int senderId;
+  final String senderName;
+  final String body;
+  final String createdAt;
+
+  factory ChatMessageModel.fromJson(Map<String, dynamic> j) => ChatMessageModel(
+        id: j['id'] as int,
+        bookingId: j['bookingId'] as int,
+        senderId: j['senderId'] as int,
+        senderName: j['senderName'] as String,
+        body: j['body'] as String,
+        createdAt: j['createdAt'] as String,
+      );
+}
+
+class SyncSnapshot {
+  const SyncSnapshot({
+    required this.serverTime,
+    required this.walletBalance,
+    required this.unreadNotifications,
+    required this.notifications,
+    required this.walletTransactions,
+    required this.feedPosts,
+  });
+
+  final String serverTime;
+  final int walletBalance;
+  final int unreadNotifications;
+  final List<NotificationModel> notifications;
+  final List<WalletTransactionModel> walletTransactions;
+  final List<FeedPostModel> feedPosts;
+
+  factory SyncSnapshot.fromJson(Map<String, dynamic> j) => SyncSnapshot(
+        serverTime: j['serverTime'] as String,
+        walletBalance: j['walletBalance'] as int? ?? 0,
+        unreadNotifications: j['unreadNotifications'] as int? ?? 0,
+        notifications: (j['notifications'] as List? ?? [])
+            .map((e) => NotificationModel.fromJson(e as Map<String, dynamic>))
+            .toList(),
+        walletTransactions: (j['walletTransactions'] as List? ?? [])
+            .map((e) => WalletTransactionModel.fromJson(e as Map<String, dynamic>))
+            .toList(),
+        feedPosts: (j['feedPosts'] as List? ?? [])
+            .map((e) => FeedPostModel.fromJson(e as Map<String, dynamic>))
+            .toList(),
       );
 }
 

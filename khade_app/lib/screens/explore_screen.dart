@@ -139,7 +139,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
                                         crossAxisAlignment: CrossAxisAlignment.start,
                                         children: [
                                           Text(p.name, style: AppTheme.sans(12, weight: FontWeight.w500), maxLines: 1, overflow: TextOverflow.ellipsis),
-                                          Text('⭐ ${p.rating.toStringAsFixed(1)} · ${p.distanceKm}km · ${p.area}', style: AppTheme.sans(10, color: AppColors.soft), maxLines: 1, overflow: TextOverflow.ellipsis),
+                                          Text('⭐ ${p.rating.toStringAsFixed(1)} · ${p.distanceKm}km · ${p.etaLabel} · ${p.area}', style: AppTheme.sans(10, color: AppColors.soft), maxLines: 1, overflow: TextOverflow.ellipsis),
                                           Text(p.priceLabel, style: AppTheme.sans(11, color: AppColors.matcha, weight: FontWeight.w500)),
                                         ],
                                       ),

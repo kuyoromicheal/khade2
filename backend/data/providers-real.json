@@ -1,172 +1,727 @@
 [
   {
-    "name": "Fade House Abuja",
-    "category_slug": "barbing",
-    "area": "Wuse II",
+    "name": "Glam Studio Pro",
+    "category_slug": "makeup",
+    "area": "Maitama",
     "phone": "+2348012345678",
-    "price_from": 4000,
-    "rating": 4.8,
-    "review_count": 124,
+    "price_from": 8000,
+    "rating": 4.5,
+    "review_count": 40,
     "verified": true,
     "featured": true,
     "badge": "🔥 Popular",
     "services": [
-      { "name": "Classic Cut", "duration": "30 mins", "price": 4000 },
-      { "name": "Fade + Beard", "duration": "45 mins", "price": 5500 },
-      { "name": "Kids Cut", "duration": "25 mins", "price": 3000 }
+      {
+        "name": "Soft Glam",
+        "duration": "60 mins",
+        "price": 8000
+      },
+      {
+        "name": "Full Glam",
+        "duration": "90 mins",
+        "price": 15000
+      },
+      {
+        "name": "Bridal Makeup",
+        "duration": "120 mins",
+        "price": 35000
+      }
+    ]
+  },
+  {
+    "name": "Beat by Ada",
+    "category_slug": "makeup",
+    "area": "Garki",
+    "phone": "+2348012345679",
+    "price_from": 8000,
+    "rating": 4.6,
+    "review_count": 47,
+    "verified": false,
+    "featured": false,
+    "badge": "⭐ Top Rated",
+    "services": [
+      {
+        "name": "Soft Glam",
+        "duration": "60 mins",
+        "price": 8000
+      },
+      {
+        "name": "Full Glam",
+        "duration": "90 mins",
+        "price": 15000
+      },
+      {
+        "name": "Bridal Makeup",
+        "duration": "120 mins",
+        "price": 35000
+      }
+    ]
+  },
+  {
+    "name": "Luxury Face Abuja",
+    "category_slug": "makeup",
+    "area": "Asokoro",
+    "phone": "+2348012345680",
+    "price_from": 8000,
+    "rating": 4.7,
+    "review_count": 54,
+    "verified": true,
+    "featured": false,
+    "badge": "✦ Featured",
+    "services": [
+      {
+        "name": "Soft Glam",
+        "duration": "60 mins",
+        "price": 8000
+      },
+      {
+        "name": "Full Glam",
+        "duration": "90 mins",
+        "price": 15000
+      },
+      {
+        "name": "Bridal Makeup",
+        "duration": "120 mins",
+        "price": 35000
+      }
+    ]
+  },
+  {
+    "name": "Glamour by Chioma",
+    "category_slug": "makeup",
+    "area": "Jabi",
+    "phone": "+2348012345681",
+    "price_from": 8000,
+    "rating": 4.8,
+    "review_count": 61,
+    "verified": false,
+    "featured": false,
+    "badge": "💎 Premium",
+    "services": [
+      {
+        "name": "Soft Glam",
+        "duration": "60 mins",
+        "price": 8000
+      },
+      {
+        "name": "Full Glam",
+        "duration": "90 mins",
+        "price": 15000
+      },
+      {
+        "name": "Bridal Makeup",
+        "duration": "120 mins",
+        "price": 35000
+      }
     ]
   },
   {
     "name": "Royal Touch Nails",
     "category_slug": "nails",
-    "area": "Maitama",
-    "phone": "+2348023456789",
-    "price_from": 6000,
-    "rating": 4.9,
-    "review_count": 89,
+    "area": "Asokoro",
+    "phone": "+2348012345682",
+    "price_from": 7000,
+    "rating": 4.5,
+    "review_count": 68,
     "verified": true,
     "featured": true,
-    "badge": "⭐ Top Rated",
+    "badge": "🔥 Popular",
     "services": [
-      { "name": "Classic Manicure", "duration": "45 mins", "price": 6000 },
-      { "name": "Gel Polish", "duration": "60 mins", "price": 8500 },
-      { "name": "Pedicure", "duration": "60 mins", "price": 7000 }
+      {
+        "name": "Classic Manicure",
+        "duration": "45 mins",
+        "price": 7000
+      },
+      {
+        "name": "Gel Polish",
+        "duration": "60 mins",
+        "price": 8500
+      },
+      {
+        "name": "Full Set Acrylic",
+        "duration": "90 mins",
+        "price": 12000
+      }
     ]
   },
   {
-    "name": "Glam Studio Pro",
-    "category_slug": "makeup",
-    "area": "Asokoro",
-    "phone": "+2348034567890",
-    "price_from": 15000,
-    "rating": 4.7,
-    "review_count": 67,
-    "verified": true,
-    "featured": true,
-    "badge": "💄 Bridal Expert",
+    "name": "Polish House Abuja",
+    "category_slug": "nails",
+    "area": "Jabi",
+    "phone": "+2348012345683",
+    "price_from": 7000,
+    "rating": 4.6,
+    "review_count": 75,
+    "verified": false,
+    "featured": false,
+    "badge": "⭐ Top Rated",
     "services": [
-      { "name": "Soft Glam", "duration": "90 mins", "price": 15000 },
-      { "name": "Bridal Makeup", "duration": "180 mins", "price": 45000 },
-      { "name": "Photoshoot Makeup", "duration": "120 mins", "price": 25000 }
+      {
+        "name": "Classic Manicure",
+        "duration": "45 mins",
+        "price": 7000
+      },
+      {
+        "name": "Gel Polish",
+        "duration": "60 mins",
+        "price": 8500
+      },
+      {
+        "name": "Full Set Acrylic",
+        "duration": "90 mins",
+        "price": 12000
+      }
+    ]
+  },
+  {
+    "name": "Nail Affair Studio",
+    "category_slug": "nails",
+    "area": "Maitama",
+    "phone": "+2348012345684",
+    "price_from": 7000,
+    "rating": 4.7,
+    "review_count": 82,
+    "verified": true,
+    "featured": false,
+    "badge": "✦ Featured",
+    "services": [
+      {
+        "name": "Classic Manicure",
+        "duration": "45 mins",
+        "price": 7000
+      },
+      {
+        "name": "Gel Polish",
+        "duration": "60 mins",
+        "price": 8500
+      },
+      {
+        "name": "Full Set Acrylic",
+        "duration": "90 mins",
+        "price": 12000
+      }
+    ]
+  },
+  {
+    "name": "Tips & Toes NG",
+    "category_slug": "nails",
+    "area": "Garki",
+    "phone": "+2348012345685",
+    "price_from": 7000,
+    "rating": 4.8,
+    "review_count": 89,
+    "verified": false,
+    "featured": false,
+    "badge": "💎 Premium",
+    "services": [
+      {
+        "name": "Classic Manicure",
+        "duration": "45 mins",
+        "price": 7000
+      },
+      {
+        "name": "Gel Polish",
+        "duration": "60 mins",
+        "price": 8500
+      },
+      {
+        "name": "Full Set Acrylic",
+        "duration": "90 mins",
+        "price": 12000
+      }
     ]
   },
   {
     "name": "Serenity Spa Abuja",
     "category_slug": "spa",
-    "area": "Jabi",
-    "phone": "+2348045678901",
-    "price_from": 12000,
-    "rating": 4.8,
-    "review_count": 142,
+    "area": "Maitama",
+    "phone": "+2348012345686",
+    "price_from": 15000,
+    "rating": 4.5,
+    "review_count": 96,
     "verified": true,
     "featured": true,
-    "badge": "🧖 Relaxation",
+    "badge": "🔥 Popular",
     "services": [
-      { "name": "Swedish Massage", "duration": "60 mins", "price": 12000 },
-      { "name": "Deep Tissue Massage", "duration": "90 mins", "price": 18000 },
-      { "name": "Body Scrub", "duration": "60 mins", "price": 15000 }
+      {
+        "name": "Swedish Massage",
+        "duration": "60 mins",
+        "price": 15000
+      },
+      {
+        "name": "Deep Tissue",
+        "duration": "75 mins",
+        "price": 22000
+      },
+      {
+        "name": "Couples Spa",
+        "duration": "120 mins",
+        "price": 45000
+      }
     ]
   },
   {
-    "name": "Luxury Hair Lounge",
-    "category_slug": "hair",
-    "area": "Gwarinpa",
-    "phone": "+2348056789012",
-    "price_from": 8000,
-    "rating": 4.8,
-    "review_count": 93,
-    "verified": true,
-    "featured": true,
-    "badge": "💇 Trending",
-    "services": [
-      { "name": "Hair Wash", "duration": "30 mins", "price": 3000 },
-      { "name": "Hair Installation", "duration": "120 mins", "price": 18000 },
-      { "name": "Hair Treatment", "duration": "60 mins", "price": 8000 }
-    ]
-  },
-  {
-    "name": "Glow Skin Clinic",
-    "category_slug": "skincare",
-    "area": "Utako",
-    "phone": "+2348067890123",
-    "price_from": 10000,
-    "rating": 4.9,
-    "review_count": 54,
-    "verified": true,
-    "featured": true,
-    "badge": "✨ Skin Expert",
-    "services": [
-      { "name": "Facial Treatment", "duration": "60 mins", "price": 10000 },
-      { "name": "Acne Therapy", "duration": "75 mins", "price": 15000 },
-      { "name": "Skin Consultation", "duration": "30 mins", "price": 5000 }
-    ]
-  },
-  {
-    "name": "Braids & Beyond",
-    "category_slug": "braids",
-    "area": "Wuse",
-    "phone": "+2348078901234",
-    "price_from": 7000,
-    "rating": 4.7,
-    "review_count": 73,
-    "verified": true,
-    "featured": true,
-    "badge": "🪡 Best Braids",
-    "services": [
-      { "name": "Knotless Braids", "duration": "240 mins", "price": 18000 },
-      { "name": "Box Braids", "duration": "210 mins", "price": 15000 },
-      { "name": "Cornrows", "duration": "90 mins", "price": 7000 }
-    ]
-  },
-  {
-    "name": "Lash Affair Studio",
-    "category_slug": "lashes",
+    "name": "Zen Wellness Lounge",
+    "category_slug": "spa",
     "area": "Garki",
-    "phone": "+2348089012345",
-    "price_from": 9000,
-    "rating": 4.8,
-    "review_count": 61,
-    "verified": true,
-    "featured": true,
-    "badge": "👁️ Premium Lashes",
+    "phone": "+2348012345687",
+    "price_from": 15000,
+    "rating": 4.6,
+    "review_count": 103,
+    "verified": false,
+    "featured": false,
+    "badge": "⭐ Top Rated",
     "services": [
-      { "name": "Classic Set", "duration": "90 mins", "price": 9000 },
-      { "name": "Hybrid Set", "duration": "120 mins", "price": 12000 },
-      { "name": "Volume Set", "duration": "150 mins", "price": 15000 }
+      {
+        "name": "Swedish Massage",
+        "duration": "60 mins",
+        "price": 15000
+      },
+      {
+        "name": "Deep Tissue",
+        "duration": "75 mins",
+        "price": 22000
+      },
+      {
+        "name": "Couples Spa",
+        "duration": "120 mins",
+        "price": 45000
+      }
     ]
   },
   {
-    "name": "Wellness Hub Abuja",
-    "category_slug": "wellness",
-    "area": "Guzape",
-    "phone": "+2348090123456",
-    "price_from": 10000,
-    "rating": 4.9,
-    "review_count": 48,
+    "name": "Oasis Day Spa",
+    "category_slug": "spa",
+    "area": "Asokoro",
+    "phone": "+2348012345688",
+    "price_from": 15000,
+    "rating": 4.7,
+    "review_count": 110,
+    "verified": true,
+    "featured": false,
+    "badge": "✦ Featured",
+    "services": [
+      {
+        "name": "Swedish Massage",
+        "duration": "60 mins",
+        "price": 15000
+      },
+      {
+        "name": "Deep Tissue",
+        "duration": "75 mins",
+        "price": 22000
+      },
+      {
+        "name": "Couples Spa",
+        "duration": "120 mins",
+        "price": 45000
+      }
+    ]
+  },
+  {
+    "name": "Fade House Abuja",
+    "category_slug": "barbing",
+    "area": "Gwarinpa",
+    "phone": "+2348012345689",
+    "price_from": 3500,
+    "rating": 4.5,
+    "review_count": 117,
     "verified": true,
     "featured": true,
-    "badge": "💆 Wellness",
+    "badge": "🔥 Popular",
     "services": [
-      { "name": "Yoga Session", "duration": "60 mins", "price": 10000 },
-      { "name": "Meditation Therapy", "duration": "45 mins", "price": 8000 },
-      { "name": "Stress Relief Package", "duration": "90 mins", "price": 18000 }
+      {
+        "name": "Classic Cut",
+        "duration": "30 mins",
+        "price": 3500
+      },
+      {
+        "name": "Fade + Beard",
+        "duration": "45 mins",
+        "price": 5500
+      },
+      {
+        "name": "Kids Cut",
+        "duration": "25 mins",
+        "price": 3000
+      }
+    ]
+  },
+  {
+    "name": "Sharp Cuts Studio",
+    "category_slug": "barbing",
+    "area": "Utako",
+    "phone": "+2348012345690",
+    "price_from": 3500,
+    "rating": 4.6,
+    "review_count": 124,
+    "verified": false,
+    "featured": false,
+    "badge": "⭐ Top Rated",
+    "services": [
+      {
+        "name": "Classic Cut",
+        "duration": "30 mins",
+        "price": 3500
+      },
+      {
+        "name": "Fade + Beard",
+        "duration": "45 mins",
+        "price": 5500
+      },
+      {
+        "name": "Kids Cut",
+        "duration": "25 mins",
+        "price": 3000
+      }
+    ]
+  },
+  {
+    "name": "The Grooming Lab",
+    "category_slug": "barbing",
+    "area": "Guzape",
+    "phone": "+2348012345691",
+    "price_from": 3500,
+    "rating": 4.7,
+    "review_count": 131,
+    "verified": true,
+    "featured": false,
+    "badge": "✦ Featured",
+    "services": [
+      {
+        "name": "Classic Cut",
+        "duration": "30 mins",
+        "price": 3500
+      },
+      {
+        "name": "Fade + Beard",
+        "duration": "45 mins",
+        "price": 5500
+      },
+      {
+        "name": "Kids Cut",
+        "duration": "25 mins",
+        "price": 3000
+      }
     ]
   },
   {
     "name": "Elite Grooming Lounge",
     "category_slug": "barbing",
-    "area": "Kubwa",
-    "phone": "+2348101234567",
+    "area": "Wuse II",
+    "phone": "+2348012345692",
     "price_from": 3500,
-    "rating": 4.6,
-    "review_count": 105,
+    "rating": 4.8,
+    "review_count": 138,
+    "verified": false,
+    "featured": false,
+    "badge": "💎 Premium",
+    "services": [
+      {
+        "name": "Classic Cut",
+        "duration": "30 mins",
+        "price": 3500
+      },
+      {
+        "name": "Fade + Beard",
+        "duration": "45 mins",
+        "price": 5500
+      },
+      {
+        "name": "Kids Cut",
+        "duration": "25 mins",
+        "price": 3000
+      }
+    ]
+  },
+  {
+    "name": "Luxury Hair Lounge",
+    "category_slug": "hair",
+    "area": "Guzape",
+    "phone": "+2348012345693",
+    "price_from": 5000,
+    "rating": 4.5,
+    "review_count": 145,
     "verified": true,
     "featured": true,
-    "badge": "✂️ Men's Choice",
+    "badge": "🔥 Popular",
     "services": [
-      { "name": "Regular Cut", "duration": "30 mins", "price": 3500 },
-      { "name": "Premium Fade", "duration": "45 mins", "price": 5000 },
-      { "name": "Hair Dye", "duration": "60 mins", "price": 7000 }
+      {
+        "name": "Wash & Blow",
+        "duration": "45 mins",
+        "price": 5000
+      },
+      {
+        "name": "Silk Press",
+        "duration": "90 mins",
+        "price": 12000
+      },
+      {
+        "name": "Install + Style",
+        "duration": "180 mins",
+        "price": 25000
+      }
+    ]
+  },
+  {
+    "name": "Crown & Co Hair",
+    "category_slug": "hair",
+    "area": "Wuse II",
+    "phone": "+2348012345694",
+    "price_from": 5000,
+    "rating": 4.6,
+    "review_count": 152,
+    "verified": false,
+    "featured": false,
+    "badge": "⭐ Top Rated",
+    "services": [
+      {
+        "name": "Wash & Blow",
+        "duration": "45 mins",
+        "price": 5000
+      },
+      {
+        "name": "Silk Press",
+        "duration": "90 mins",
+        "price": 12000
+      },
+      {
+        "name": "Install + Style",
+        "duration": "180 mins",
+        "price": 25000
+      }
+    ]
+  },
+  {
+    "name": "Silk Strands Abuja",
+    "category_slug": "hair",
+    "area": "Gwarinpa",
+    "phone": "+2348012345695",
+    "price_from": 5000,
+    "rating": 4.7,
+    "review_count": 159,
+    "verified": true,
+    "featured": false,
+    "badge": "✦ Featured",
+    "services": [
+      {
+        "name": "Wash & Blow",
+        "duration": "45 mins",
+        "price": 5000
+      },
+      {
+        "name": "Silk Press",
+        "duration": "90 mins",
+        "price": 12000
+      },
+      {
+        "name": "Install + Style",
+        "duration": "180 mins",
+        "price": 25000
+      }
+    ]
+  },
+  {
+    "name": "Hair Majesty Studio",
+    "category_slug": "hair",
+    "area": "Utako",
+    "phone": "+2348012345696",
+    "price_from": 5000,
+    "rating": 4.8,
+    "review_count": 166,
+    "verified": false,
+    "featured": false,
+    "badge": "💎 Premium",
+    "services": [
+      {
+        "name": "Wash & Blow",
+        "duration": "45 mins",
+        "price": 5000
+      },
+      {
+        "name": "Silk Press",
+        "duration": "90 mins",
+        "price": 12000
+      },
+      {
+        "name": "Install + Style",
+        "duration": "180 mins",
+        "price": 25000
+      }
+    ]
+  },
+  {
+    "name": "Glow Skin Clinic",
+    "category_slug": "skincare",
+    "area": "Gwarinpa",
+    "phone": "+2348012345697",
+    "price_from": 10000,
+    "rating": 4.5,
+    "review_count": 173,
+    "verified": true,
+    "featured": true,
+    "badge": "🔥 Popular",
+    "services": [
+      {
+        "name": "Express Facial",
+        "duration": "45 mins",
+        "price": 10000
+      },
+      {
+        "name": "Hydra Facial",
+        "duration": "60 mins",
+        "price": 18000
+      },
+      {
+        "name": "Anti-Age Treatment",
+        "duration": "90 mins",
+        "price": 30000
+      }
+    ]
+  },
+  {
+    "name": "Derma Luxe Abuja",
+    "category_slug": "skincare",
+    "area": "Utako",
+    "phone": "+2348012345698",
+    "price_from": 10000,
+    "rating": 4.6,
+    "review_count": 180,
+    "verified": false,
+    "featured": false,
+    "badge": "⭐ Top Rated",
+    "services": [
+      {
+        "name": "Express Facial",
+        "duration": "45 mins",
+        "price": 10000
+      },
+      {
+        "name": "Hydra Facial",
+        "duration": "60 mins",
+        "price": 18000
+      },
+      {
+        "name": "Anti-Age Treatment",
+        "duration": "90 mins",
+        "price": 30000
+      }
+    ]
+  },
+  {
+    "name": "Radiance Skin Bar",
+    "category_slug": "skincare",
+    "area": "Guzape",
+    "phone": "+2348012345699",
+    "price_from": 10000,
+    "rating": 4.7,
+    "review_count": 187,
+    "verified": true,
+    "featured": false,
+    "badge": "✦ Featured",
+    "services": [
+      {
+        "name": "Express Facial",
+        "duration": "45 mins",
+        "price": 10000
+      },
+      {
+        "name": "Hydra Facial",
+        "duration": "60 mins",
+        "price": 18000
+      },
+      {
+        "name": "Anti-Age Treatment",
+        "duration": "90 mins",
+        "price": 30000
+      }
+    ]
+  },
+  {
+    "name": "Braids & Beyond",
+    "category_slug": "braids",
+    "area": "Jabi",
+    "phone": "+2348012345700",
+    "price_from": 12000,
+    "rating": 4.5,
+    "review_count": 194,
+    "verified": true,
+    "featured": true,
+    "badge": "🔥 Popular",
+    "services": [
+      {
+        "name": "Box Braids",
+        "duration": "180 mins",
+        "price": 12000
+      },
+      {
+        "name": "Knotless Braids",
+        "duration": "240 mins",
+        "price": 18000
+      },
+      {
+        "name": "Ghana Weaving",
+        "duration": "300 mins",
+        "price": 35000
+      }
+    ]
+  },
+  {
+    "name": "Plait Perfect Abuja",
+    "category_slug": "braids",
+    "area": "Maitama",
+    "phone": "+2348012345701",
+    "price_from": 12000,
+    "rating": 4.6,
+    "review_count": 201,
+    "verified": false,
+    "featured": false,
+    "badge": "⭐ Top Rated",
+    "services": [
+      {
+        "name": "Box Braids",
+        "duration": "180 mins",
+        "price": 12000
+      },
+      {
+        "name": "Knotless Braids",
+        "duration": "240 mins",
+        "price": 18000
+      },
+      {
+        "name": "Ghana Weaving",
+        "duration": "300 mins",
+        "price": 35000
+      }
+    ]
+  },
+  {
+    "name": "African Crown Braids",
+    "category_slug": "braids",
+    "area": "Garki",
+    "phone": "+2348012345702",
+    "price_from": 12000,
+    "rating": 4.7,
+    "review_count": 208,
+    "verified": true,
+    "featured": false,
+    "badge": "✦ Featured",
+    "services": [
+      {
+        "name": "Box Braids",
+        "duration": "180 mins",
+        "price": 12000
+      },
+      {
+        "name": "Knotless Braids",
+        "duration": "240 mins",
+        "price": 18000
+      },
+      {
+        "name": "Ghana Weaving",
+        "duration": "300 mins",
+        "price": 35000
+      }
     ]
   }
 ]

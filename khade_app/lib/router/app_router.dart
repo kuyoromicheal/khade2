@@ -19,7 +19,18 @@ import '../screens/provider_dash_screen.dart';
 import '../screens/review_screen.dart';
 import '../screens/wallet_screen.dart';
 import '../screens/saved_providers_screen.dart';
+import '../screens/location_picker_screen.dart';
 import '../screens/settings_screen.dart';
+import '../screens/onboarding_screen.dart';
+import '../screens/login_screen.dart';
+import '../screens/register_screen.dart';
+import '../screens/provider_onboarding_screen.dart';
+import '../screens/role_picker_screen.dart';
+import '../screens/provider_app_shell.dart';
+import '../screens/provider_services_screen.dart';
+import '../screens/chat_screen.dart';
+import '../screens/group_booking_screen.dart';
+import '../screens/provider_business_screen.dart';
 
 final _rootKey = GlobalKey<NavigatorState>();
 final _shellKey = GlobalKey<NavigatorState>();
@@ -29,6 +40,21 @@ GoRouter createRouter() => GoRouter(
       initialLocation: '/splash',
       routes: [
         GoRoute(path: '/splash', builder: (_, __) => const SplashScreen()),
+        GoRoute(path: '/onboarding', builder: (_, __) => const OnboardingScreen()),
+        GoRoute(path: '/role-picker', builder: (_, __) => const RolePickerScreen()),
+        GoRoute(path: '/login', builder: (_, state) => LoginScreen(roleHint: state.uri.queryParameters['role'])),
+        GoRoute(path: '/register', builder: (_, state) => RegisterScreen(initialRole: state.uri.queryParameters['role'] ?? 'customer')),
+        GoRoute(path: '/provider-onboarding', builder: (_, __) => const ProviderOnboardingScreen()),
+        GoRoute(path: '/provider-services', builder: (_, __) => const ProviderServicesScreen()),
+        ShellRoute(
+          builder: (context, state, child) => ProviderAppShell(location: state.uri.path, child: child),
+          routes: [
+            GoRoute(path: '/provider-home', builder: (_, __) => const ProviderHomeScreen()),
+            GoRoute(path: '/provider-calendar', builder: (_, __) => const ProviderCalendarScreen()),
+            GoRoute(path: '/provider-earnings', builder: (_, __) => const ProviderEarningsShellScreen()),
+            GoRoute(path: '/provider-profile', builder: (_, __) => const ProviderProfileShellScreen()),
+          ],
+        ),
         ShellRoute(
           navigatorKey: _shellKey,
           builder: (context, state, child) => MainShell(location: state.uri.path, child: child),
@@ -56,6 +82,7 @@ GoRouter createRouter() => GoRouter(
             serviceName: Uri.decodeComponent(state.uri.queryParameters['serviceName'] ?? 'Full Glam Makeup'),
             providerName: Uri.decodeComponent(state.uri.queryParameters['providerName'] ?? 'Zara Beauty Studio'),
             price: int.tryParse(state.uri.queryParameters['price'] ?? '12000') ?? 12000,
+            note: state.uri.queryParameters.containsKey('note') ? Uri.decodeComponent(state.uri.queryParameters['note']!) : null,
           ),
         ),
         GoRoute(
@@ -86,6 +113,7 @@ GoRouter createRouter() => GoRouter(
         GoRoute(path: '/admin', builder: (_, __) => const AdminScreen()),
         GoRoute(path: '/wallet', builder: (_, __) => const WalletScreen()),
         GoRoute(path: '/saved-providers', builder: (_, __) => const SavedProvidersScreen()),
+        GoRoute(path: '/location-picker', builder: (_, __) => const LocationPickerScreen()),
         GoRoute(path: '/settings', builder: (_, __) => const SettingsScreen()),
         GoRoute(
           path: '/review',
@@ -96,6 +124,20 @@ GoRouter createRouter() => GoRouter(
           ),
         ),
         GoRoute(path: '/provider-dash', builder: (_, __) => const ProviderDashScreen()),
+        GoRoute(
+          path: '/chat',
+          builder: (_, state) => ChatScreen(
+            bookingId: int.tryParse(state.uri.queryParameters['bookingId'] ?? '1') ?? 1,
+            title: state.uri.queryParameters.containsKey('title') ? Uri.decodeComponent(state.uri.queryParameters['title']!) : null,
+          ),
+        ),
+        GoRoute(
+          path: '/group-booking',
+          builder: (_, state) => GroupBookingScreen(
+            providerId: int.tryParse(state.uri.queryParameters['providerId'] ?? ''),
+          ),
+        ),
+        GoRoute(path: '/provider-business', builder: (_, __) => const ProviderBusinessScreen()),
       ],
     );
 

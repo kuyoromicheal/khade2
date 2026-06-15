@@ -20,6 +20,10 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _activeCat = 0;
 
+  Future<void> _openLocationPicker() async {
+    await context.push('/location-picker');
+  }
+
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
@@ -30,12 +34,16 @@ class _HomeScreenState extends State<HomeScreen> {
         final cats = repo.categories;
         final catLabel = cats.isNotEmpty ? cats[_activeCat.clamp(0, cats.length - 1)].label : 'All';
         final featured = repo.featured;
-        final topProviders = repo.byCategory(catLabel);
 
         return Column(
           children: [
             _HomeHeader(
               userName: user?.name.split(' ').first ?? 'Guest',
+              locationLabel: repo.locationLabel,
+              usingGps: repo.hasRealLocation,
+              pinAdjusted: repo.pinAdjusted,
+              unreadCount: repo.unreadNotificationCount,
+              onOpenLocation: _openLocationPicker,
               onNotifications: () => context.push('/notifications'),
               onProfile: () => context.go('/profile'),
             ),
@@ -49,6 +57,28 @@ class _HomeScreenState extends State<HomeScreen> {
                         padding: EdgeInsets.zero,
                         children: [
                           const ConnectionBanner(),
+                          if (!repo.inServiceArea)
+                            Container(
+                              margin: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFFFF3E0),
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(color: const Color(0xFFFFE082)),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.info_outline, size: 18, color: Color(0xFFC47D00)),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      'Outside Abuja service area — update your delivery pin',
+                                      style: AppTheme.sans(11, color: const Color(0xFFC47D00)),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
                           _SearchBar(onTap: () => context.go('/explore')),
                           if (cats.isNotEmpty)
                             _CategoryRow(
@@ -60,7 +90,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           SectionTitle(title: 'Featured Near You', action: 'See all', onAction: () => context.go('/explore')),
                           _FeaturedRow(providers: featured.take(10).toList()),
                           SectionTitle(title: 'Top Providers', action: '${repo.providers.length} total', onAction: () => context.go('/explore')),
-                          for (final p in topProviders.take(5)) _providerCard(context, p),
+                          for (final p in repo.filterProviders(categoryLabel: catLabel).take(5)) _providerCard(context, p),
                           SectionTitle(title: 'Inspiration', action: 'See all', onAction: () => context.go('/feed')),
                           for (final post in repo.feed.take(1)) _feedPreview(context, post),
                           const SizedBox(height: 20),
@@ -123,8 +153,22 @@ class _HomeScreenState extends State<HomeScreen> {
 }
 
 class _HomeHeader extends StatelessWidget {
-  const _HomeHeader({required this.userName, required this.onNotifications, required this.onProfile});
+  const _HomeHeader({
+    required this.userName,
+    required this.locationLabel,
+    required this.usingGps,
+    required this.pinAdjusted,
+    required this.unreadCount,
+    required this.onOpenLocation,
+    required this.onNotifications,
+    required this.onProfile,
+  });
   final String userName;
+  final String locationLabel;
+  final bool usingGps;
+  final bool pinAdjusted;
+  final int unreadCount;
+  final VoidCallback onOpenLocation;
   final VoidCallback onNotifications;
   final VoidCallback onProfile;
 
@@ -151,9 +195,29 @@ class _HomeHeader extends StatelessWidget {
                 Row(
                   children: [
                     Stack(
+                      clipBehavior: Clip.none,
                       children: [
                         IconButton(icon: const Icon(Icons.notifications_outlined, size: 22), onPressed: onNotifications),
-                        Positioned(top: 10, right: 10, child: Container(width: 7, height: 7, decoration: BoxDecoration(color: AppColors.red, shape: BoxShape.circle, border: Border.all(color: AppColors.cream, width: 1.5)))),
+                        if (unreadCount > 0)
+                          Positioned(
+                            top: 8,
+                            right: 8,
+                            child: Container(
+                              padding: unreadCount > 9 ? const EdgeInsets.symmetric(horizontal: 4, vertical: 1) : null,
+                              constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                              decoration: BoxDecoration(
+                                color: AppColors.red,
+                                shape: unreadCount > 9 ? BoxShape.rectangle : BoxShape.circle,
+                                borderRadius: unreadCount > 9 ? BorderRadius.circular(8) : null,
+                                border: Border.all(color: AppColors.cream, width: 1.5),
+                              ),
+                              alignment: Alignment.center,
+                              child: Text(
+                                unreadCount > 9 ? '9+' : '$unreadCount',
+                                style: AppTheme.sans(9, color: AppColors.white, weight: FontWeight.w600),
+                              ),
+                            ),
+                          ),
                       ],
                     ),
                     GestureDetector(
@@ -165,13 +229,23 @@ class _HomeHeader extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 8),
-            Row(
-              children: [
-                const Icon(Icons.location_on_outlined, size: 14, color: AppColors.matcha),
-                const SizedBox(width: 4),
-                Text('Maitama, Abuja', style: AppTheme.sans(11, color: AppColors.matcha)),
-                const Icon(Icons.keyboard_arrow_down, size: 14, color: AppColors.matcha),
-              ],
+            GestureDetector(
+              onTap: onOpenLocation,
+              child: Row(
+                children: [
+                  Icon(pinAdjusted ? Icons.edit_location_alt : (usingGps ? Icons.my_location : Icons.location_on_outlined), size: 14, color: AppColors.matcha),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      locationLabel,
+                      style: AppTheme.sans(11, color: AppColors.matcha),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const Icon(Icons.keyboard_arrow_down, size: 14, color: AppColors.matcha),
+                ],
+              ),
             ),
           ],
         ),
@@ -273,7 +347,7 @@ class _FeaturedRow extends StatelessWidget {
             _FeatCard(
               emoji: p.emoji,
               name: p.name,
-              sub: '⭐ ${p.rating.toStringAsFixed(1)} · ${p.distanceKm}km',
+              sub: '⭐ ${p.rating.toStringAsFixed(1)} · ${p.distanceKm}km · ${p.etaLabel}',
               price: p.priceLabel,
               imageUrl: p.imageUrl,
               colors: [colorFromHex(p.gradientStart), colorFromHex(p.gradientEnd)],
@@ -298,22 +372,27 @@ class _FeatCard extends StatelessWidget {
       onTap: onTap,
       child: Container(
         width: 200,
+        height: 180,
         margin: const EdgeInsets.only(right: 12),
         decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(14), border: Border.all(color: AppColors.border)),
         clipBehavior: Clip.antiAlias,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            SizedBox(height: 110, child: KhadeImage(url: imageUrl, fallbackUrl: imageUrl, gradient: colors, emojiSize: 36)),
-            Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(name, style: AppTheme.serif(14), maxLines: 1, overflow: TextOverflow.ellipsis),
-                  Text(sub, style: AppTheme.sans(10, color: AppColors.soft)),
-                  Text(price, style: AppTheme.sans(12, color: AppColors.matcha, weight: FontWeight.w500)),
-                ],
+            SizedBox(height: 108, child: KhadeImage(url: imageUrl, fallbackUrl: imageUrl, gradient: colors, emojiSize: 36)),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(name, style: AppTheme.serif(14, weight: FontWeight.w500), maxLines: 1, overflow: TextOverflow.ellipsis),
+                    const SizedBox(height: 2),
+                    Text(sub, style: AppTheme.sans(10, color: AppColors.soft), maxLines: 1, overflow: TextOverflow.ellipsis),
+                    Text(price, style: AppTheme.sans(12, color: AppColors.matcha, weight: FontWeight.w500), maxLines: 1, overflow: TextOverflow.ellipsis),
+                  ],
+                ),
               ),
             ),
           ],

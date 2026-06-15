@@ -46,7 +46,7 @@ function nextId(data, key) {
   return data._counters[key];
 }
 
-function main() {
+async function main() {
   if (!fs.existsSync(INPUT)) {
     console.error(`Missing ${INPUT}`);
     console.error('Copy providers-real.example.json → providers-real.json and edit it.');
@@ -59,7 +59,7 @@ function main() {
     process.exit(1);
   }
 
-  const data = load();
+  const data = await load();
 
   // Keep demo providers inactive so app shows real ones first
   data.providers.forEach((p) => { p.status = 'inactive'; p.featured = 0; });
@@ -113,10 +113,13 @@ function main() {
     idx++;
   }
 
-  save(data);
-  require('../src/export-bootstrap-file');
+  await save(data);
+  await require('../src/export-bootstrap-file')();
   require('./bundle-deploy-data');
   console.log(`\nDone. ${idx} real providers active. Restart backend + Flutter app.`);
 }
 
-main();
+main().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});

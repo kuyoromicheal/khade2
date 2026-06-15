@@ -77,3 +77,18 @@ String formatBookingDate(String iso) {
     return iso;
   }
 }
+
+String formatTimeAgo(String iso) {
+  try {
+    final dt = DateTime.parse(iso);
+    final diff = DateTime.now().difference(dt);
+    if (diff.inSeconds < 60) return 'Just now';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+    if (diff.inHours < 24) return '${diff.inHours}h ago';
+    if (diff.inDays == 1) return 'Yesterday';
+    if (diff.inDays < 7) return '${diff.inDays}d ago';
+    return formatBookingDate(iso);
+  } catch (_) {
+    return iso;
+  }
+}

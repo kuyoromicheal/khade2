@@ -18,6 +18,12 @@ services:
         sync: false
       - key: PAYSTACK_CALLBACK_BASE
         sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: JWT_SECRET
+        sync: false
       - key: PEXELS_API_KEY
         sync: false
         optional: true

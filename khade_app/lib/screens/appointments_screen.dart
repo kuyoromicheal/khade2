@@ -40,6 +40,15 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
               child: _ViewSwitcher(labels: const ['Upcoming', 'History'], active: _tab, onChanged: (i) => setState(() => _tab = i)),
             ),
             const ConnectionBanner(),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+              child: OutlinedButton.icon(
+                onPressed: () => context.push('/group-booking'),
+                icon: const Icon(Icons.groups_outlined, size: 18),
+                label: const Text('Group / Owambe booking'),
+                style: OutlinedButton.styleFrom(foregroundColor: AppColors.matchaDeep, side: const BorderSide(color: AppColors.matcha)),
+              ),
+            ),
             Expanded(
               child: bookings.isEmpty
                   ? Center(child: Text('No bookings yet', style: AppTheme.sans(14, color: AppColors.soft)))

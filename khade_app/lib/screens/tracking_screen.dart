@@ -4,6 +4,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:go_router/go_router.dart';
 import 'package:latlong2/latlong.dart';
 import '../models/models.dart';
+import '../services/contact_launcher.dart';
 import '../services/khade_repository.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_theme.dart';
@@ -55,12 +56,125 @@ class _TrackingScreenState extends State<TrackingScreen> {
     super.dispose();
   }
 
+  String? _providerPhone(BookingModel? booking, ProviderModel? provider, TrackingSnapshot? snap) {
+    return snap?.providerPhone ?? provider?.phone;
+  }
+
+  void _showNoPhone() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Provider phone number not available'), backgroundColor: AppColors.redDark),
+    );
+  }
+
+  Future<void> _callProvider(String? phone) async {
+    if (phone == null || phone.isEmpty) {
+      _showNoPhone();
+      return;
+    }
+    final ok = await ContactLauncher.call(phone);
+    if (!mounted) return;
+    if (!ok) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not open phone dialer for $phone'), backgroundColor: AppColors.redDark),
+      );
+    }
+  }
+
+  void _openMessageOptions({
+    required String? phone,
+    required String providerName,
+    required String bookingCode,
+    String? customerName,
+    String? address,
+    int? etaMinutes,
+  }) {
+    if (phone == null || phone.isEmpty) {
+      _showNoPhone();
+      return;
+    }
+    final message = ContactLauncher.trackingMessage(
+      providerName: providerName,
+      bookingCode: bookingCode,
+      customerName: customerName,
+      address: address,
+      etaMinutes: etaMinutes,
+    );
+
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: AppColors.white,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(width: 36, height: 4, decoration: BoxDecoration(color: AppColors.border, borderRadius: BorderRadius.circular(2))),
+              ),
+              const SizedBox(height: 16),
+              Text('Message $providerName', style: AppTheme.serif(20)),
+              Text('Choose how to reach your provider', style: AppTheme.sans(12, color: AppColors.soft)),
+              const SizedBox(height: 16),
+              _ContactOption(
+                icon: Icons.forum_outlined,
+                iconColor: AppColors.matchaDeep,
+                title: 'In-app chat',
+                subtitle: 'Message inside Khade for this booking',
+                onTap: () {
+                  Navigator.pop(ctx);
+                  final id = _bookingId;
+                  if (id != null) context.push('/chat?bookingId=$id&title=${Uri.encodeComponent('Chat with $providerName')}');
+                },
+              ),
+              const SizedBox(height: 10),
+              _ContactOption(
+                icon: Icons.chat,
+                iconColor: const Color(0xFF25D366),
+                title: 'WhatsApp',
+                subtitle: 'Opens WhatsApp with your booking details',
+                onTap: () async {
+                  Navigator.pop(ctx);
+                  final ok = await ContactLauncher.whatsApp(phone, message: message);
+                  if (!mounted || ok) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('WhatsApp is not installed on this device'), backgroundColor: AppColors.redDark),
+                  );
+                },
+              ),
+              const SizedBox(height: 10),
+              _ContactOption(
+                icon: Icons.sms_outlined,
+                iconColor: AppColors.matcha,
+                title: 'SMS',
+                subtitle: 'Opens your messaging app',
+                onTap: () async {
+                  Navigator.pop(ctx);
+                  final ok = await ContactLauncher.sms(phone, body: message);
+                  if (!mounted || ok) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Could not open SMS app'), backgroundColor: AppColors.redDark),
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final repo = KhadeRepository.instance;
     final booking = _bookingId != null ? repo.bookingById(_bookingId!) : null;
     final provider = booking != null ? repo.providerById(booking.providerId) : null;
     final snap = _snap;
+    final phone = _providerPhone(booking, provider, snap);
+    final providerName = snap?.providerName ?? provider?.name ?? booking?.providerName ?? 'Provider';
+    final bookingCode = snap?.bookingCode ?? booking?.bookingCode ?? 'KHD-0000';
     final dest = LatLng(snap?.destinationLat ?? defaultLat, snap?.destinationLng ?? defaultLng);
     final providerPos = LatLng(snap?.providerLat ?? provider?.latitude ?? 9.0833, snap?.providerLng ?? provider?.longitude ?? 7.495);
     final start = LatLng(snap != null ? snap.providerLat - (dest.latitude - snap.providerLat) * 0.3 : providerPos.latitude, snap != null ? snap.providerLng - (dest.longitude - snap.providerLng) * 0.3 : providerPos.longitude);
@@ -161,14 +275,30 @@ class _TrackingScreenState extends State<TrackingScreen> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(snap?.providerName ?? provider?.name ?? booking?.providerName ?? 'Provider', style: AppTheme.sans(13, weight: FontWeight.w500)),
-                                Text('Live GPS · updates every 5s', style: AppTheme.sans(11, color: AppColors.matcha)),
+                                Text(providerName, style: AppTheme.sans(13, weight: FontWeight.w500)),
+                                Text(
+                                  phone != null ? 'Tap to call or message · Live GPS' : 'Live GPS · updates every 5s',
+                                  style: AppTheme.sans(11, color: AppColors.matcha),
+                                ),
                               ],
                             ),
                           ),
                           IconButton(
                             icon: const Icon(Icons.chat_bubble_outline, color: AppColors.matcha),
-                            onPressed: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Chat with provider'), backgroundColor: AppColors.matcha)),
+                            tooltip: 'Message',
+                            onPressed: () => _openMessageOptions(
+                              phone: phone,
+                              providerName: providerName,
+                              bookingCode: bookingCode,
+                              customerName: repo.user?.name.split(' ').first,
+                              address: snap?.address ?? booking?.address,
+                              etaMinutes: snap?.etaMinutes,
+                            ),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.phone_outlined, color: AppColors.matcha),
+                            tooltip: 'Call',
+                            onPressed: () => _callProvider(phone),
                           ),
                         ],
                       ),
@@ -178,7 +308,7 @@ class _TrackingScreenState extends State<TrackingScreen> {
                       children: [
                         Expanded(
                           child: OutlinedButton.icon(
-                            onPressed: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Calling provider...'), backgroundColor: AppColors.matcha)),
+                            onPressed: () => _callProvider(phone),
                             icon: const Icon(Icons.phone_outlined, size: 16),
                             label: const Text('Call'),
                             style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 12), backgroundColor: AppColors.cream),
@@ -187,13 +317,27 @@ class _TrackingScreenState extends State<TrackingScreen> {
                         const SizedBox(width: 10),
                         Expanded(
                           child: OutlinedButton.icon(
-                            onPressed: () => context.push('/cancel?bookingId=${booking?.id ?? 1}&provider=${Uri.encodeComponent(provider?.name ?? booking?.providerName ?? 'Provider')}'),
-                            icon: const Icon(Icons.close, size: 16, color: AppColors.redDark),
-                            label: Text('Cancel', style: AppTheme.sans(12, color: AppColors.redDark)),
-                            style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 12), backgroundColor: AppColors.redBg),
+                            onPressed: () => _openMessageOptions(
+                              phone: phone,
+                              providerName: providerName,
+                              bookingCode: bookingCode,
+                              customerName: repo.user?.name.split(' ').first,
+                              address: snap?.address ?? booking?.address,
+                              etaMinutes: snap?.etaMinutes,
+                            ),
+                            icon: const Icon(Icons.message_outlined, size: 16),
+                            label: const Text('Message'),
+                            style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 12), backgroundColor: AppColors.cream),
                           ),
                         ),
                       ],
+                    ),
+                    const SizedBox(height: 10),
+                    OutlinedButton.icon(
+                      onPressed: () => context.push('/cancel?bookingId=${booking?.id ?? 1}&provider=${Uri.encodeComponent(providerName)}'),
+                      icon: const Icon(Icons.close, size: 16, color: AppColors.redDark),
+                      label: Text('Cancel booking', style: AppTheme.sans(12, color: AppColors.redDark)),
+                      style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 12), backgroundColor: AppColors.redBg),
                     ),
                   ],
                 ),
@@ -201,6 +345,53 @@ class _TrackingScreenState extends State<TrackingScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _ContactOption extends StatelessWidget {
+  const _ContactOption({
+    required this.icon,
+    required this.iconColor,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final Color iconColor;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.cream,
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Row(
+            children: [
+              CircleAvatar(radius: 20, backgroundColor: iconColor.withValues(alpha: 0.15), child: Icon(icon, color: iconColor, size: 20)),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title, style: AppTheme.sans(13, weight: FontWeight.w600)),
+                    Text(subtitle, style: AppTheme.sans(11, color: AppColors.soft)),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right, color: AppColors.soft, size: 20),
+            ],
+          ),
+        ),
       ),
     );
   }
