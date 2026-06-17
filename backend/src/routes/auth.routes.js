@@ -139,7 +139,7 @@ router.post('/register', async (req, res) => {
       image_url: null,
       avatar_url: null,
       phone: phone || null,
-      owner_user_id: id,
+      owner_user_id: null,
       bio: '',
       visit_types: visitTypes,
       availability: DEFAULT_SLOTS,
@@ -176,6 +176,14 @@ router.post('/register', async (req, res) => {
   }
 
   await save(data);
+
+  if (role === 'provider' && user.provider_id) {
+    const provider = data.providers.find((p) => p.id === user.provider_id);
+    if (provider) {
+      provider.owner_user_id = id;
+      await save(data);
+    }
+  }
 
   const token = signToken(user);
   res.status(201).json({

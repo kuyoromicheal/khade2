@@ -3,8 +3,8 @@ const { getClient } = require('./supabase-client');
 /** JSON key → Supabase table (khade_* avoids conflicts with existing UUID tables) */
 const TABLE_MAP = {
   categories: 'khade_categories',
-  users: 'khade_users',
   providers: 'khade_providers',
+  users: 'khade_users',
   services: 'khade_services',
   bookings: 'khade_bookings',
   feed_posts: 'khade_feed_posts',
@@ -12,6 +12,7 @@ const TABLE_MAP = {
   notifications: 'khade_notifications',
   wallet_transactions: 'khade_wallet_transactions',
   reviews: 'khade_reviews',
+  messages: 'khade_messages',
 };
 
 const TABLES = Object.keys(TABLE_MAP);
