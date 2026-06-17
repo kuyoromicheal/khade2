@@ -9,6 +9,10 @@ android {
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
+    buildFeatures {
+        resValues = true
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
@@ -22,6 +26,20 @@ android {
         versionName = flutter.versionName
         ndk {
             abiFilters += listOf("arm64-v8a")
+        }
+    }
+
+    flavorDimensions += "app"
+    productFlavors {
+        create("customer") {
+            dimension = "app"
+            applicationId = "com.khade.khade_app"
+            resValue("string", "app_name", "Khade")
+        }
+        create("provider") {
+            dimension = "app"
+            applicationId = "com.khade.khade_provider"
+            resValue("string", "app_name", "Khade Pro")
         }
     }
 

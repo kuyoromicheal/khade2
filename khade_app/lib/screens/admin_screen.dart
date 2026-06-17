@@ -125,9 +125,9 @@ class _AdminScreenState extends State<AdminScreen> {
                       _StatCard(label: 'Boost fees', value: _fmt(stats['boostRevenue'] as int? ?? 7500), sub: '₦2,500 / 7 days', wide: true),
                     ],
                     if (_tab == 1) ...[
-                      for (final p in _providers.isNotEmpty
+                      for (final Map<String, dynamic> p in _providers.isNotEmpty
                           ? _providers
-                          : repo.providers.map((pr) => {
+                          : repo.providers.map((pr) => <String, dynamic>{
                                 'name': pr.name,
                                 'category': pr.category,
                                 'bookings': pr.reviewCount,
@@ -139,7 +139,6 @@ class _AdminScreenState extends State<AdminScreen> {
                           title: '${p['name']}',
                           sub: '${p['category']} · ${p['bookings']} bookings',
                           badge: '${p['status']}',
-                          onApprove: p['status'] == 'under_review' ? () => _setProviderStatus(p['id'] as int, 'active') : null,
                         ),
                     ],
                     if (_tab == 2)
@@ -173,15 +172,6 @@ class _AdminScreenState extends State<AdminScreen> {
         );
       },
     );
-  }
-
-  Future<void> _setProviderStatus(int id, String status) async {
-    try {
-      await khadeApi.updateProviderStatus(id, status);
-      await _load();
-    } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
-    }
   }
 
   Future<void> _approvePayout(int id) async {

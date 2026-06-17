@@ -2,7 +2,6 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/models.dart';
 import 'khade_api.dart';
-import 'push_notification_service.dart';
 
 class AuthService extends ChangeNotifier {
   AuthService._();
@@ -28,7 +27,6 @@ class AuthService extends ChangeNotifier {
       khadeApi.setToken(_token);
       try {
         _authUser = await khadeApi.getMe();
-        await PushNotificationService.instance.registerIfLoggedIn();
       } catch (_) {
         await clearSession();
       }
@@ -57,7 +55,6 @@ class AuthService extends ChangeNotifier {
     String city = 'Abuja',
     String? phone,
     String? businessName,
-    String? cacNumber,
     String visitTypes = 'both',
     String area = 'Wuse II',
   }) async {
@@ -69,7 +66,6 @@ class AuthService extends ChangeNotifier {
       city: city,
       phone: phone,
       businessName: businessName,
-      cacNumber: cacNumber,
       visitTypes: visitTypes,
       area: area,
     );
@@ -102,7 +98,6 @@ class AuthService extends ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_tokenKey, token);
     notifyListeners();
-    await PushNotificationService.instance.registerIfLoggedIn();
   }
 
   Future<void> clearSession() async {

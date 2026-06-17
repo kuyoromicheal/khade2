@@ -1,4 +1,4 @@
--- Khade Phase 2 full schema — run after schema.sql + auth-extensions.sql
+-- Khade Phase 2 full schema — run after schema.sql + auth-extensions.sql + phase2.sql
 -- Safe to re-run (IF NOT EXISTS)
 
 alter table khade_users add column if not exists tier text default 'Bronze';
@@ -153,7 +153,6 @@ alter table khade_platform_revenue disable row level security;
 alter table khade_fcm_tokens disable row level security;
 alter table khade_pending_payments disable row level security;
 
--- Enable Supabase Realtime (run if publication exists)
 do $$ begin
   alter publication supabase_realtime add table khade_notifications;
 exception when duplicate_object then null;

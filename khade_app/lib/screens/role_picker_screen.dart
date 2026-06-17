@@ -33,9 +33,9 @@ class RolePickerScreen extends StatelessWidget {
               _RoleCard(
                 emoji: '💄',
                 title: 'I\'m a Provider',
-                subtitle: 'Manage bookings, earnings & clients · CAC verification',
+                subtitle: 'Manage bookings, earnings & clients on Khade',
                 color: AppColors.matchaDeep,
-                onTap: () => context.push('/register?role=provider'),
+                onTap: () => context.push('/provider-signup'),
               ),
               const Spacer(),
               Center(

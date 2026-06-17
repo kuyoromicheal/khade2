@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import '../services/khade_repository.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_theme.dart';
+import '../utils/tier_utils.dart';
 import '../widgets/api_widgets.dart';
 import '../widgets/common_widgets.dart';
 import 'paystack_checkout_screen.dart';
@@ -47,7 +48,7 @@ class _WalletScreenState extends State<WalletScreen> {
         );
         return;
       }
-      final success = await repo.topUpWallet(amount);
+      final success = await repo.topUpWallet(amount, paystackReference: ref);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -92,7 +93,7 @@ class _WalletScreenState extends State<WalletScreen> {
                           Text('Available Balance', style: AppTheme.sans(12, color: Colors.white70)),
                           Text(formatNaira(balance), style: AppTheme.serif(36, color: AppColors.white)),
                           const SizedBox(height: 4),
-                          Text('${user?.tier ?? 'Gold'} Member · 5% cashback on bookings', style: AppTheme.sans(11, color: Colors.white60)),
+                          Text(TierUtils.cashbackLabel(user?.tier), style: AppTheme.sans(11, color: Colors.white60)),
                           const SizedBox(height: 20),
                           Row(
                             children: [

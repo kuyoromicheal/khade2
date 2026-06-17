@@ -23,6 +23,26 @@ class ProviderModel {
     this.longitude,
     this.phone,
     this.services = const [],
+    this.bio = '',
+    this.photos = const [],
+    this.openingHours,
+    this.instantConfirm = true,
+    this.doesHomeVisits = true,
+    this.hasSalon = false,
+    this.acceptsGroups = true,
+    this.isCertified = false,
+    this.hasTeam = false,
+    this.locationArea,
+    this.team = const [],
+    this.branches = const [],
+    this.providerType = 'mobile',
+    this.travelRadiusKm = 10,
+    this.travelFeePerKm = 0,
+    this.minTravelFee = 0,
+    this.baseArea,
+    this.providerSubtype = 'solo_pro',
+    this.workLocations = const [],
+    this.coverageAreas = const [],
   });
 
   final int id;
@@ -45,8 +65,77 @@ class ProviderModel {
   final double? longitude;
   final String? phone;
   final List<ServiceModel> services;
+  final String bio;
+  final List<String> photos;
+  final Map<String, dynamic>? openingHours;
+  final bool instantConfirm;
+  final bool doesHomeVisits;
+  final bool hasSalon;
+  final bool acceptsGroups;
+  final bool isCertified;
+  final bool hasTeam;
+  final String? locationArea;
+  final List<ProviderTeamMember> team;
+  final List<ProviderBranch> branches;
+  final String providerType; // salon | mobile | both
+  final int travelRadiusKm;
+  final double travelFeePerKm;
+  final int minTravelFee;
+  final String? baseArea;
+  final String providerSubtype;
+  final List<String> workLocations;
+  final List<String> coverageAreas;
 
-  factory ProviderModel.fromJson(Map<String, dynamic> j) => ProviderModel(
+  bool get isSoloPro => providerSubtype == 'solo_pro';
+
+  String get subtypeBadge => switch (providerSubtype) {
+        'salon' || 'studio' => '🏪 Salon',
+        'mobile' => '🚗 Comes to You',
+        'solo_pro' => '⚡ Solo Pro',
+        _ => providerType == 'salon' ? '🏪 Salon' : '🚗 Mobile',
+      };
+
+  String get coverageLabel => coverageAreas.isNotEmpty ? coverageAreas.take(3).join(', ') : area;
+
+  String get workLocationsLabel {
+    const labels = {
+      'client_home': 'client home',
+      'own_home': 'own home',
+      'rented_studio': 'rented studio',
+      'hotel': 'hotels',
+      'events': 'events',
+    };
+    if (workLocations.isEmpty) return isSoloPro ? 'flexible locations' : '';
+    return workLocations.map((w) => labels[w] ?? w).join(', ');
+  }
+
+  bool get isMobileProvider => providerType == 'mobile' || providerType == 'both' || isSoloPro;
+  bool get isSalonProvider => providerType == 'salon' || providerType == 'both';
+
+  String get locationBadge => isMobileProvider && !isSalonProvider
+      ? '🚗 Comes to you'
+      : isMobileProvider
+          ? '🚗 Mobile · ${baseArea ?? area}'
+          : '📍 ${area}';
+
+  String get travelInfo {
+    if (!isMobileProvider) return '';
+    final base = baseArea ?? area;
+    final fee = travelFeePerKm > 0
+        ? '₦${travelFeePerKm.toStringAsFixed(0)}/km (min ₦$minTravelFee)'
+        : 'Free travel';
+    return 'Travels up to ${travelRadiusKm}km from $base · $fee';
+  }
+
+  factory ProviderModel.fromJson(Map<String, dynamic> j) {
+    final photosRaw = j['photos'];
+    List<String> photos = const [];
+    if (photosRaw is List) {
+      photos = photosRaw.map((e) => e.toString()).where((s) => s.isNotEmpty).toList();
+    }
+    if (photos.isEmpty && j['imageUrl'] != null) photos = [j['imageUrl'] as String];
+
+    return ProviderModel(
         id: j['id'] as int,
         name: j['name'] as String,
         category: j['category'] as String,
@@ -70,7 +159,34 @@ class ProviderModel {
                 ?.map((e) => ServiceModel.fromJson(e as Map<String, dynamic>))
                 .toList() ??
             const [],
+        bio: j['bio'] as String? ?? '',
+        photos: photos,
+        openingHours: j['openingHours'] as Map<String, dynamic>?,
+        instantConfirm: j['instantConfirm'] as bool? ?? true,
+        doesHomeVisits: j['doesHomeVisits'] as bool? ?? true,
+        hasSalon: j['hasSalon'] as bool? ?? false,
+        acceptsGroups: j['acceptsGroups'] as bool? ?? true,
+        isCertified: j['isCertified'] as bool? ?? false,
+        hasTeam: j['hasTeam'] as bool? ?? false,
+        locationArea: j['locationArea'] as String?,
+        team: (j['team'] as List<dynamic>?)
+                ?.map((e) => ProviderTeamMember.fromJson(e as Map<String, dynamic>))
+                .toList() ??
+            const [],
+        branches: (j['branches'] as List<dynamic>?)
+                ?.map((e) => ProviderBranch.fromJson(e as Map<String, dynamic>))
+                .toList() ??
+            const [],
+        providerType: j['providerType'] as String? ?? 'mobile',
+        travelRadiusKm: (j['travelRadiusKm'] as num?)?.toInt() ?? 10,
+        travelFeePerKm: (j['travelFeePerKm'] as num?)?.toDouble() ?? 0,
+        minTravelFee: (j['minTravelFee'] as num?)?.toInt() ?? 0,
+        baseArea: j['baseArea'] as String?,
+        providerSubtype: j['providerSubtype'] as String? ?? 'solo_pro',
+        workLocations: (j['workLocations'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? const [],
+        coverageAreas: (j['coverageAreas'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? const [],
       );
+  }
 
   String get priceLabel => 'From ₦${_formatNaira(priceFrom)}';
   String get distanceLabel => '${distanceKm}km';
@@ -103,6 +219,44 @@ class ServiceModel {
       );
 }
 
+class ProviderTeamMember {
+  const ProviderTeamMember({required this.id, required this.name, required this.role, this.rating = 5, this.avatarUrl});
+
+  final int id;
+  final String name;
+  final String role;
+  final double rating;
+  final String? avatarUrl;
+
+  factory ProviderTeamMember.fromJson(Map<String, dynamic> j) => ProviderTeamMember(
+        id: j['id'] as int,
+        name: j['name'] as String,
+        role: j['role'] as String? ?? 'Specialist',
+        rating: (j['rating'] as num?)?.toDouble() ?? 5,
+        avatarUrl: j['avatarUrl'] as String?,
+      );
+}
+
+class ProviderBranch {
+  const ProviderBranch({required this.id, required this.branchName, required this.address, this.lat, this.lng, this.isPrimary = false});
+
+  final int id;
+  final String branchName;
+  final String address;
+  final double? lat;
+  final double? lng;
+  final bool isPrimary;
+
+  factory ProviderBranch.fromJson(Map<String, dynamic> j) => ProviderBranch(
+        id: j['id'] as int,
+        branchName: j['branchName'] as String? ?? 'Branch',
+        address: j['address'] as String? ?? '',
+        lat: (j['lat'] as num?)?.toDouble(),
+        lng: (j['lng'] as num?)?.toDouble(),
+        isPrimary: j['isPrimary'] as bool? ?? false,
+      );
+}
+
 class BookingModel {
   const BookingModel({
     required this.id,
@@ -116,6 +270,9 @@ class BookingModel {
     required this.providerEmoji,
     required this.serviceName,
     this.address,
+    this.userId,
+    this.customerName,
+    this.customerPhone,
   });
 
   final int id;
@@ -129,20 +286,31 @@ class BookingModel {
   final String providerName;
   final String providerEmoji;
   final String serviceName;
+  final int? userId;
+  final String? customerName;
+  final String? customerPhone;
 
-  factory BookingModel.fromJson(Map<String, dynamic> j) => BookingModel(
-        id: j['id'] as int,
-        bookingCode: j['bookingCode'] as String,
-        status: j['status'] as String,
-        locationType: j['locationType'] as String,
-        address: j['address'] as String?,
-        scheduledAt: j['scheduledAt'] as String,
-        totalAmount: j['totalAmount'] as int,
-        providerId: (j['provider'] as Map<String, dynamic>)['id'] as int,
-        providerName: (j['provider'] as Map<String, dynamic>)['name'] as String,
-        providerEmoji: (j['provider'] as Map<String, dynamic>)['emoji'] as String,
-        serviceName: (j['service'] as Map<String, dynamic>)['name'] as String,
-      );
+  factory BookingModel.fromJson(Map<String, dynamic> j) {
+    final provider = j['provider'] as Map<String, dynamic>?;
+    final customer = j['customer'] as Map<String, dynamic>?;
+    final service = j['service'] as Map<String, dynamic>?;
+    return BookingModel(
+      id: j['id'] as int,
+      bookingCode: j['bookingCode'] as String,
+      status: j['status'] as String,
+      locationType: j['locationType'] as String,
+      address: j['address'] as String?,
+      scheduledAt: j['scheduledAt'] as String,
+      totalAmount: j['totalAmount'] as int,
+      providerId: provider?['id'] as int? ?? j['providerId'] as int? ?? 0,
+      providerName: provider?['name'] as String? ?? j['providerName'] as String? ?? 'Provider',
+      providerEmoji: provider?['emoji'] as String? ?? '💄',
+      serviceName: service?['name'] as String? ?? j['serviceName'] as String? ?? 'Service',
+      userId: customer?['id'] as int? ?? j['userId'] as int?,
+      customerName: customer?['name'] as String? ?? j['customerName'] as String?,
+      customerPhone: customer?['phone'] as String? ?? j['customerPhone'] as String?,
+    );
+  }
 }
 
 class FeedPostModel {
@@ -218,6 +386,7 @@ class CategoryModel {
     required this.emoji,
     this.filter,
     this.imageUrl,
+    this.iconName,
   });
 
   final int id;
@@ -226,6 +395,7 @@ class CategoryModel {
   final String emoji;
   final String? filter;
   final String? imageUrl;
+  final String? iconName;
 
   factory CategoryModel.fromJson(Map<String, dynamic> j) => CategoryModel(
         id: j['id'] as int,
@@ -263,7 +433,7 @@ class WalletTransactionModel {
         createdAt: j['createdAt'] as String,
       );
 
-  bool get isCredit => type == 'credit';
+  bool get isCredit => type == 'credit' || type == 'cashback' || type == 'refund';
 }
 
 class ReviewModel {
@@ -488,66 +658,6 @@ class TrackingSnapshot {
       );
 }
 
-class ChatMessageModel {
-  const ChatMessageModel({
-    required this.id,
-    required this.bookingId,
-    required this.senderId,
-    required this.senderName,
-    required this.body,
-    required this.createdAt,
-  });
-
-  final int id;
-  final int bookingId;
-  final int senderId;
-  final String senderName;
-  final String body;
-  final String createdAt;
-
-  factory ChatMessageModel.fromJson(Map<String, dynamic> j) => ChatMessageModel(
-        id: j['id'] as int,
-        bookingId: j['bookingId'] as int,
-        senderId: j['senderId'] as int,
-        senderName: j['senderName'] as String,
-        body: j['body'] as String,
-        createdAt: j['createdAt'] as String,
-      );
-}
-
-class SyncSnapshot {
-  const SyncSnapshot({
-    required this.serverTime,
-    required this.walletBalance,
-    required this.unreadNotifications,
-    required this.notifications,
-    required this.walletTransactions,
-    required this.feedPosts,
-  });
-
-  final String serverTime;
-  final int walletBalance;
-  final int unreadNotifications;
-  final List<NotificationModel> notifications;
-  final List<WalletTransactionModel> walletTransactions;
-  final List<FeedPostModel> feedPosts;
-
-  factory SyncSnapshot.fromJson(Map<String, dynamic> j) => SyncSnapshot(
-        serverTime: j['serverTime'] as String,
-        walletBalance: j['walletBalance'] as int? ?? 0,
-        unreadNotifications: j['unreadNotifications'] as int? ?? 0,
-        notifications: (j['notifications'] as List? ?? [])
-            .map((e) => NotificationModel.fromJson(e as Map<String, dynamic>))
-            .toList(),
-        walletTransactions: (j['walletTransactions'] as List? ?? [])
-            .map((e) => WalletTransactionModel.fromJson(e as Map<String, dynamic>))
-            .toList(),
-        feedPosts: (j['feedPosts'] as List? ?? [])
-            .map((e) => FeedPostModel.fromJson(e as Map<String, dynamic>))
-            .toList(),
-      );
-}
-
 /// Explore filter options.
 class ProviderFilters {
   const ProviderFilters({
@@ -557,6 +667,9 @@ class ProviderFilters {
     this.area,
     this.sortBy = 'featured',
     this.verifiedOnly = false,
+    this.venueType = 'all',
+    this.mobileOnly = false,
+    this.soloProOnly = false,
   });
 
   final int minPrice;
@@ -565,8 +678,21 @@ class ProviderFilters {
   final String? area;
   final String sortBy;
   final bool verifiedOnly;
+  final String venueType; // all | salon | mobile | both
+  final bool mobileOnly;
+  final bool soloProOnly;
 
-  ProviderFilters copyWith({int? minPrice, int? maxPrice, double? maxDistance, String? area, String? sortBy, bool? verifiedOnly}) =>
+  ProviderFilters copyWith({
+    int? minPrice,
+    int? maxPrice,
+    double? maxDistance,
+    String? area,
+    String? sortBy,
+    bool? verifiedOnly,
+    String? venueType,
+    bool? mobileOnly,
+    bool? soloProOnly,
+  }) =>
       ProviderFilters(
         minPrice: minPrice ?? this.minPrice,
         maxPrice: maxPrice ?? this.maxPrice,
@@ -574,8 +700,115 @@ class ProviderFilters {
         area: area ?? this.area,
         sortBy: sortBy ?? this.sortBy,
         verifiedOnly: verifiedOnly ?? this.verifiedOnly,
+        venueType: venueType ?? this.venueType,
+        mobileOnly: mobileOnly ?? this.mobileOnly,
+        soloProOnly: soloProOnly ?? this.soloProOnly,
       );
 
   bool get isDefault =>
-      minPrice == 0 && maxPrice == 50000 && maxDistance == 15 && area == null && sortBy == 'featured' && !verifiedOnly;
+      minPrice == 0 &&
+      maxPrice == 50000 &&
+      maxDistance == 15 &&
+      area == null &&
+      sortBy == 'featured' &&
+      !verifiedOnly &&
+      venueType == 'all' &&
+      !mobileOnly &&
+      !soloProOnly;
+}
+
+class ConversationModel {
+  const ConversationModel({
+    required this.bookingId,
+    required this.providerName,
+    required this.providerEmoji,
+    required this.lastMessage,
+    required this.updatedAt,
+    this.unread = 0,
+    this.customerName,
+  });
+
+  final int bookingId;
+  final String providerName;
+  final String providerEmoji;
+  final String lastMessage;
+  final String updatedAt;
+  final int unread;
+  final String? customerName;
+
+  String get displayName => customerName ?? providerName;
+  String get displayEmoji => customerName != null ? '👤' : providerEmoji;
+
+  factory ConversationModel.fromJson(Map<String, dynamic> j) => ConversationModel(
+        bookingId: j['bookingId'] as int,
+        providerName: j['providerName'] as String? ?? 'Provider',
+        providerEmoji: j['providerEmoji'] as String? ?? '💄',
+        lastMessage: j['lastMessage'] as String? ?? '',
+        updatedAt: j['updatedAt'] as String? ?? '',
+        unread: j['unread'] as int? ?? 0,
+        customerName: j['customerName'] as String?,
+      );
+}
+
+class MessageModel {
+  const MessageModel({
+    required this.id,
+    required this.bookingId,
+    required this.senderId,
+    required this.senderName,
+    required this.body,
+    required this.createdAt,
+    this.isMine = false,
+  });
+
+  final int id;
+  final int bookingId;
+  final int senderId;
+  final String senderName;
+  final String body;
+  final String createdAt;
+  final bool isMine;
+
+  factory MessageModel.fromJson(Map<String, dynamic> j) => MessageModel(
+        id: j['id'] as int,
+        bookingId: j['bookingId'] as int,
+        senderId: j['senderId'] as int,
+        senderName: j['senderName'] as String? ?? 'User',
+        body: j['body'] as String,
+        createdAt: j['createdAt'] as String,
+        isMine: j['isMine'] as bool? ?? false,
+      );
+}
+
+class ProviderClientModel {
+  const ProviderClientModel({
+    required this.userId,
+    required this.name,
+    required this.bookingCount,
+    required this.lifetimeValue,
+    required this.lastBookingAt,
+    this.phone,
+    this.email,
+    this.upcomingCount = 0,
+  });
+
+  final int userId;
+  final String name;
+  final String? phone;
+  final String? email;
+  final int bookingCount;
+  final int lifetimeValue;
+  final String lastBookingAt;
+  final int upcomingCount;
+
+  factory ProviderClientModel.fromJson(Map<String, dynamic> j) => ProviderClientModel(
+        userId: j['userId'] as int,
+        name: j['name'] as String? ?? 'Client',
+        phone: j['phone'] as String?,
+        email: j['email'] as String?,
+        bookingCount: j['bookingCount'] as int? ?? 0,
+        lifetimeValue: j['lifetimeValue'] as int? ?? 0,
+        lastBookingAt: j['lastBookingAt'] as String? ?? '',
+        upcomingCount: j['upcomingCount'] as int? ?? 0,
+      );
 }

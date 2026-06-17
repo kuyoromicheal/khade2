@@ -512,7 +512,7 @@ router.post('/bookings', async (req, res) => {
     emoji: provider?.emoji ?? '✦',
   });
 
-  await save(data);
+  await save(data, ['bookings', 'users', 'notifications', '_counters']);
 
   res.status(201).json({ data: { id, bookingCode: code, totalAmount: total, serviceFee: fee, status: 'upcoming' } });
 });
@@ -536,7 +536,7 @@ router.post('/feed/:id/like', async (req, res) => {
     post.liked_by.push(userId);
     post.likes = (post.likes || 0) + 1;
   }
-  await save(data);
+  await save(data, ['feed_posts']);
   res.json({ data: { liked: idx < 0, likes: post.likes } });
 });
 
@@ -573,7 +573,7 @@ router.post('/feed/:id/comments', async (req, res) => {
   };
   data.feed_comments.push(comment);
   post.comments = (post.comments || 0) + 1;
-  await save(data);
+  await save(data, ['feed_comments', 'feed_posts', '_counters']);
   res.status(201).json({
     data: { id: comment.id, postId: post.id, authorName: comment.author_name, text: comment.text, createdAt: comment.created_at, commentCount: post.comments },
   });
@@ -650,7 +650,7 @@ router.post('/notifications/mark-all-read', async (req, res) => {
   const data = await load();
   const userId = Number(req.body.userId || 1);
   data.notifications.filter(n => n.user_id === userId).forEach(n => { n.read = 1; });
-  await save(data);
+  await save(data, ['notifications']);
   res.json({ data: { success: true } });
 });
 
@@ -659,7 +659,7 @@ router.patch('/notifications/:id/read', async (req, res) => {
   const row = data.notifications.find(n => n.id === Number(req.params.id));
   if (!row) return res.status(404).json({ error: 'Notification not found' });
   row.read = 1;
-  await save(data);
+  await save(data, ['notifications']);
   res.json({ data: { id: row.id, read: true } });
 });
 
@@ -727,7 +727,7 @@ router.post('/wallet/topup', async (req, res) => {
     body: `₦${amt.toLocaleString()} added to your Khade wallet`,
     emoji: '💰',
   });
-  await save(data);
+  await save(data, ['users', 'wallet_transactions', 'notifications', '_counters']);
   res.json({ data: { success: true, newBalance: user.wallet_balance, amount: amt } });
 });
 
@@ -752,7 +752,7 @@ router.post('/payments/wallet', async (req, res) => {
     reference: `WALLET_${Date.now()}`,
     created_at: new Date().toISOString(),
   });
-  await save(data);
+  await save(data, ['users', 'wallet_transactions', '_counters']);
   res.json({ data: { success: true, newBalance: user.wallet_balance, paid: amt } });
 });
 
@@ -772,11 +772,54 @@ router.get('/admin/stats', async (_req, res) => {
   });
 });
 
+router.get('/payments/banks', async (_req, res) => {
+  try {
+    const { listBanks } = require('../paystack');
+    const banks = await listBanks();
+    res.json({ data: banks });
+  } catch (e) {
+    res.status(502).json({ error: e.message });
+  }
+});
+
+router.post('/payments/resolve-account', async (req, res) => {
+  const { accountNumber, bankCode } = req.body;
+  if (!accountNumber || !bankCode) {
+    return res.status(400).json({ error: 'accountNumber and bankCode required' });
+  }
+  try {
+    const { resolveBankAccount } = require('../paystack');
+    const result = await resolveBankAccount(accountNumber, bankCode);
+    res.json({ data: result });
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
+router.post('/users/fcm-token', requireAuth, async (req, res) => {
+  const { token, platform } = req.body;
+  if (!token) return res.status(400).json({ error: 'token required' });
+  const data = await load();
+  const user = data.users.find((u) => u.id === req.user.id);
+  if (!user) return res.status(404).json({ error: 'User not found' });
+  user.fcm_token = token;
+  await save(data, ['users']);
+  if (isConfigured()) {
+    const client = getClient();
+    await client.from('khade_fcm_tokens').upsert(
+      { id: req.user.id, user_id: req.user.id, token, platform: platform || 'unknown' },
+      { onConflict: 'id' },
+    );
+  }
+  res.json({ data: { success: true } });
+});
+
 router.post('/payments/initialize', async (req, res) => {
-  const { amount, email = 'adaeze@example.com', bookingId } = req.body;
+  const { amount, email = 'adaeze@example.com', bookingId, userId } = req.body;
   const reference = `KHADE_${Date.now()}_${bookingId || 'bk'}`;
   const callbackBase = process.env.PAYSTACK_CALLBACK_BASE || `http://localhost:${process.env.PORT || 3001}`;
   const callbackUrl = `${callbackBase}/paystack/callback`;
+  const payerId = req.user?.id || userId;
 
   try {
     if (hasPaystackSecret()) {
@@ -785,6 +828,7 @@ router.post('/payments/initialize', async (req, res) => {
         amountNaira: Number(amount) || 13200,
         reference,
         callbackUrl,
+        metadata: payerId ? { user_id: String(payerId) } : {},
       });
       return res.json({
         data: {
@@ -862,7 +906,7 @@ router.post('/reviews', async (req, res) => {
     provider.review_count = provReviews.length;
     provider.rating = +(provReviews.reduce((s, r) => s + r.rating, 0) / provReviews.length).toFixed(1);
   }
-  await save(data);
+  await save(data, ['reviews', 'providers', '_counters']);
   res.status(201).json({ data: mapReview(review, data) });
 });
 
@@ -888,7 +932,7 @@ router.post('/users/:id/saved-providers/:providerId', async (req, res) => {
     user.saved_provider_ids.push(pid);
   }
   user.saved_providers = user.saved_provider_ids.length;
-  await save(data);
+  await save(data, ['users']);
   res.json({ data: { saved: idx < 0, savedProviderIds: user.saved_provider_ids, count: user.saved_providers } });
 });
 
@@ -905,7 +949,7 @@ router.patch('/bookings/:id/cancel', async (req, res) => {
     body: `${booking.booking_code} with ${provider?.name ?? 'provider'} was cancelled`,
     emoji: '✕',
   });
-  await save(data);
+  await save(data, ['bookings', 'notifications', '_counters']);
   res.json({ data: { id, status: 'cancelled' } });
 });
 
@@ -922,7 +966,7 @@ router.post('/bookings/:id/cancel', async (req, res) => {
     body: `${booking.booking_code} with ${provider?.name ?? 'provider'} was cancelled`,
     emoji: '✕',
   });
-  await save(data);
+  await save(data, ['bookings', 'notifications', '_counters']);
   res.json({ data: { id, status: 'cancelled' } });
 });
 
@@ -1045,7 +1089,7 @@ router.post('/messages', requireAuth, async (req, res) => {
     });
   }
 
-  await save(data);
+  await save(data, ['messages', 'notifications', '_counters']);
   res.status(201).json({
     data: {
       id: msg.id,

@@ -4,13 +4,24 @@ import '../models/models.dart';
 import '../services/khade_repository.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_theme.dart';
+import '../utils/travel_fee.dart';
 import '../widgets/api_widgets.dart';
 import '../widgets/common_widgets.dart';
 import '../widgets/khade_image.dart';
 
 class BookingScreen extends StatefulWidget {
-  const BookingScreen({super.key, this.providerId = 1});
+  const BookingScreen({
+    super.key,
+    this.providerId = 1,
+    this.serviceId,
+    this.quantity = 1,
+    this.bookingType = 'solo',
+  });
+
   final int providerId;
+  final int? serviceId;
+  final int quantity;
+  final String bookingType;
 
   @override
   State<BookingScreen> createState() => _BookingScreenState();
@@ -19,9 +30,19 @@ class BookingScreen extends StatefulWidget {
 class _BookingScreenState extends State<BookingScreen> {
   int _selectedService = 0;
   bool _atHome = true;
+  bool get _atHomeEffective {
+    final p = KhadeRepository.instance.providerById(widget.providerId);
+    if (p == null) return _atHome;
+    if (p.providerType == 'mobile') return true;
+    if (p.providerType == 'salon') return false;
+    return _atHome;
+  }
   int _selectedDate = 1;
   int _selectedTime = 2;
   final _noteController = TextEditingController();
+
+  int get _guestCount => widget.quantity.clamp(1, 50);
+  bool get _isGroup => widget.bookingType == 'group';
 
   @override
   void dispose() {
@@ -42,6 +63,17 @@ class _BookingScreenState extends State<BookingScreen> {
     return '$base T${h.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')}:00';
   }
 
+  int _travelFee(ProviderModel provider) {
+    if (!_atHomeEffective || !provider.isMobileProvider) return 0;
+    final repo = KhadeRepository.instance;
+    final fee = calculateTravelFee(
+      provider: provider,
+      customerLat: repo.userLat,
+      customerLng: repo.userLng,
+    );
+    return fee < 0 ? 0 : fee;
+  }
+
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
@@ -56,8 +88,17 @@ class _BookingScreenState extends State<BookingScreen> {
             ? provider.services
             : [const ServiceModel(id: 1, name: 'Full Glam Makeup', duration: '90 mins', price: 12000)];
 
+        if (widget.serviceId != null) {
+          final idx = services.indexWhere((s) => s.id == widget.serviceId);
+          if (idx >= 0) _selectedService = idx;
+        }
         if (_selectedService >= services.length) _selectedService = 0;
         final service = services[_selectedService];
+
+        final subtotal = service.price * _guestCount;
+        final travel = _travelFee(provider);
+        final serviceFee = ((subtotal + travel) * 0.1).round();
+        final grandTotal = subtotal + travel + serviceFee;
 
         return Scaffold(
           backgroundColor: AppColors.cream,
@@ -89,10 +130,11 @@ class _BookingScreenState extends State<BookingScreen> {
                           ),
                         ],
                       ),
-                      TextButton(
-                        onPressed: () => context.push('/review?providerId=${provider.id}&providerName=${Uri.encodeComponent(provider.name)}'),
-                        child: Text('See reviews & leave yours →', style: AppTheme.sans(11, color: AppColors.matcha)),
-                      ),
+                      if (_isGroup)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: Text('Group booking · $_guestCount guests', style: AppTheme.sans(11, color: AppColors.matcha, weight: FontWeight.w600)),
+                        ),
                     ],
                   ),
                 ),
@@ -110,8 +152,7 @@ class _BookingScreenState extends State<BookingScreen> {
               Expanded(
                 child: ListView(
                   children: [
-                    _section('Customer Reviews', _reviewsSection(provider)),
-                    _section('Choose Service', _serviceOptions(services)),
+                    if (widget.serviceId == null) _section('Choose Service', _serviceOptions(services)),
                     _section('Where?', _locationToggle(provider)),
                     _section('Pick a Date', _dateTimePicker()),
                     _section('Add a Note (optional)', TextField(
@@ -136,19 +177,30 @@ class _BookingScreenState extends State<BookingScreen> {
                   top: false,
                   child: Column(
                     children: [
+                      _priceLine(service.name, subtotal),
+                      if (travel > 0) _priceLine('Travel fee', travel),
+                      _priceLine('Service fee (10%)', serviceFee),
+                      const Divider(height: 16),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text('Total · ${service.name}', style: AppTheme.sans(12, color: AppColors.soft)),
-                          Text(formatNaira(service.price), style: AppTheme.serif(20)),
+                          Text('Total', style: AppTheme.sans(13, weight: FontWeight.w600)),
+                          Text(formatNaira(grandTotal), style: AppTheme.serif(22, color: AppColors.matchaDeep)),
                         ],
                       ),
                       const SizedBox(height: 12),
                       PrimaryButton(
                         label: 'Proceed to Payment →',
-                        onPressed: () => context.push(
-                          '/payment?providerId=${provider.id}&serviceId=${service.id}&scheduledAt=$_scheduledAt&locationType=${_atHome ? 'home' : 'salon'}&serviceName=${Uri.encodeComponent(service.name)}&providerName=${Uri.encodeComponent(provider.name)}&price=${service.price}&note=${Uri.encodeComponent(_noteController.text.trim())}',
-                        ),
+                        onPressed: () {
+                          final noteParts = <String>[];
+                          if (_isGroup) noteParts.add('Group booking · $_guestCount guests');
+                          final userNote = _noteController.text.trim();
+                          if (userNote.isNotEmpty) noteParts.add(userNote);
+                          final fullNote = noteParts.join('\n');
+                          context.push(
+                            '/payment?providerId=${provider.id}&serviceId=${service.id}&scheduledAt=$_scheduledAt&locationType=${_atHomeEffective ? 'home' : 'salon'}&serviceName=${Uri.encodeComponent(service.name)}&providerName=${Uri.encodeComponent(provider.name)}&price=$subtotal&travelFee=$travel&serviceFee=$serviceFee&total=$grandTotal&appointmentType=${widget.bookingType}&guestCount=$_guestCount&note=${Uri.encodeComponent(fullNote)}',
+                          );
+                        },
                       ),
                     ],
                   ),
@@ -161,43 +213,16 @@ class _BookingScreenState extends State<BookingScreen> {
     );
   }
 
-  Widget _reviewsSection(ProviderModel provider) {
-    final reviews = KhadeRepository.instance.reviewsForProvider(provider.id);
-    if (reviews.isEmpty) {
-      return Text('No reviews yet — be the first to share your experience!', style: AppTheme.sans(12, color: AppColors.soft));
-    }
-    return Column(
-      children: [
-        for (final r in reviews.take(5))
-          Container(
-            margin: const EdgeInsets.only(bottom: 8),
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(color: AppColors.cream, borderRadius: BorderRadius.circular(10), border: Border.all(color: AppColors.border)),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    ...List.generate(r.rating, (_) => const Icon(Icons.star, size: 12, color: AppColors.gold)),
-                    const Spacer(),
-                    Text(r.authorName, style: AppTheme.sans(10, color: AppColors.soft)),
-                  ],
-                ),
-                const SizedBox(height: 6),
-                Text(r.comment, style: AppTheme.sans(12, color: AppColors.mid)),
-              ],
-            ),
-          ),
-        Align(
-          alignment: Alignment.centerLeft,
-          child: TextButton(
-            onPressed: () => context.push('/review?providerId=${provider.id}&providerName=${Uri.encodeComponent(provider.name)}'),
-            child: Text(reviews.length > 5 ? 'See all ${reviews.length} reviews →' : 'Leave your review →', style: AppTheme.sans(11, color: AppColors.matcha)),
-          ),
+  Widget _priceLine(String label, int amount) => Padding(
+        padding: const EdgeInsets.only(bottom: 6),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(label, style: AppTheme.sans(12, color: AppColors.soft)),
+            Text(formatNaira(amount), style: AppTheme.sans(12, color: AppColors.mid)),
+          ],
         ),
-      ],
-    );
-  }
+      );
 
   Widget _section(String title, Widget child) {
     return Container(
@@ -239,16 +264,21 @@ class _BookingScreenState extends State<BookingScreen> {
   }
 
   Widget _locationToggle(ProviderModel provider) {
+    final mobileOnly = provider.providerType == 'mobile';
+    final salonOnly = provider.providerType == 'salon';
+    final atHome = _atHomeEffective;
+
     return Column(
       children: [
-        Container(
-          padding: const EdgeInsets.all(3),
-          decoration: BoxDecoration(color: AppColors.cream, borderRadius: BorderRadius.circular(10)),
-          child: Row(children: [
-            _locBtn('🏠 My Location', _atHome, () => setState(() => _atHome = true)),
-            _locBtn('🏪 Their Salon', !_atHome, () => setState(() => _atHome = false)),
-          ]),
-        ),
+        if (!mobileOnly && !salonOnly)
+          Container(
+            padding: const EdgeInsets.all(3),
+            decoration: BoxDecoration(color: AppColors.cream, borderRadius: BorderRadius.circular(10)),
+            child: Row(children: [
+              _locBtn('🏠 My Location', atHome, () => setState(() => _atHome = true)),
+              _locBtn('🏪 Their Salon', !atHome, () => setState(() => _atHome = false)),
+            ]),
+          ),
         const SizedBox(height: 10),
         Container(
           width: double.infinity,
@@ -258,13 +288,13 @@ class _BookingScreenState extends State<BookingScreen> {
             children: [
               Expanded(
                 child: Text(
-                  _atHome
+                  atHome
                       ? '📍 ${KhadeRepository.instance.userAddress}'
                       : '📍 ${provider.area}, Abuja · ${provider.distanceLabel} · ${provider.etaLabel}',
                   style: AppTheme.sans(12, color: AppColors.mid),
                 ),
               ),
-              if (_atHome)
+              if (atHome && provider.isMobileProvider)
                 TextButton(
                   onPressed: () => context.push('/location-picker'),
                   child: Text('Adjust pin', style: AppTheme.sans(11, color: AppColors.matcha)),
@@ -272,6 +302,11 @@ class _BookingScreenState extends State<BookingScreen> {
             ],
           ),
         ),
+        if (atHome && provider.isMobileProvider)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Text(provider.travelInfo, style: AppTheme.sans(11, color: AppColors.soft)),
+          ),
       ],
     );
   }

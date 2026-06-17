@@ -31,8 +31,10 @@ class ConnectionBanner extends StatelessWidget {
               Expanded(
                 child: Text(
                   live
-                      ? 'Live · ${repo.providers.length} providers from server'
-                      : 'Offline · ${repo.providers.length} providers saved · ${repo.apiUrl}',
+                      ? repo.databaseMode == 'supabase'
+                          ? 'Live · Supabase · ${repo.providers.length} providers'
+                          : 'Live · ${repo.providers.length} providers from server'
+                      : 'Offline · ${repo.providers.length} providers cached · ${repo.apiUrl}',
                   style: AppTheme.sans(11, color: live ? AppColors.matchaDeep : const Color(0xFFC47D00)),
                 ),
               ),

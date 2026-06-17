@@ -33,14 +33,30 @@ async function start() {
     await require('./seed')();
   } else {
     const { ensureDemoAccounts } = require('./routes/auth.routes');
-    await ensureDemoAccounts(data);
-    await save(data);
+    const changed = await ensureDemoAccounts(data);
+    if (changed.length) await save(data, [...changed, '_counters']);
   }
 
   const app = express();
   const PORT = process.env.PORT || 3001;
 
   app.use(cors());
+
+  app.post(
+    '/api/payments/webhook',
+    express.raw({ type: 'application/json' }),
+    async (req, res) => {
+      try {
+        const { handlePaystackWebhook } = require('./paystack-webhook');
+        const result = await handlePaystackWebhook(req.body, req.headers['x-paystack-signature']);
+        res.status(result.status).send(result.body);
+      } catch (e) {
+        console.error('Paystack webhook error:', e);
+        res.status(500).send('error');
+      }
+    },
+  );
+
   app.use(express.json());
 
   app.get('/health', (_req, res) =>

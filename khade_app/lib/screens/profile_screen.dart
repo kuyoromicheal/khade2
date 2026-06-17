@@ -6,10 +6,22 @@ import '../theme/app_colors.dart';
 import '../theme/app_theme.dart';
 import '../widgets/api_widgets.dart';
 import '../widgets/tier_badge.dart';
+import '../widgets/tier_progress.dart';
 import '../widgets/connection_banner.dart';
 
-class ProfileScreen extends StatelessWidget {
+class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
+
+  @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
+  @override
+  void initState() {
+    super.initState();
+    KhadeRepository.instance.loadConversations();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -20,6 +32,7 @@ class ProfileScreen extends StatelessWidget {
         final auth = AuthService.instance;
         final user = auth.authUser ?? repo.user;
         final initials = user?.name.split(' ').map((w) => w.isNotEmpty ? w[0] : '').take(2).join() ?? 'G';
+        final unread = repo.unreadMessagesCount;
 
         return Column(
           children: [
@@ -73,15 +86,26 @@ class ProfileScreen extends StatelessWidget {
                     padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
                     children: [
                       const ConnectionBanner(),
+                      if (auth.isLoggedIn)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: TierProgress(tier: user?.tier ?? 'Bronze', totalBookings: user?.bookingsCount ?? 0),
+                        ),
                       Container(
                         decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(14), border: Border.all(color: AppColors.border)),
                         child: Column(
                           children: [
-                            _MenuRow(icon: Icons.calendar_today_outlined, label: 'My Bookings', onTap: () => context.go('/appointments')),
+                            _MenuRow(icon: Icons.person_outline, label: 'Profile & Personal Info', onTap: () => context.push('/settings')),
                             const Divider(height: 1, color: AppColors.border),
-                            _MenuRow(icon: Icons.favorite_outline, label: 'Saved Providers (${KhadeRepository.instance.savedProviderIds.length})', onTap: () => context.push('/saved-providers')),
+                            _MenuRow(icon: Icons.chat_bubble_outline, label: 'Messages', badge: unread > 0 ? unread : null, onTap: () => context.push('/messages')),
+                            const Divider(height: 1, color: AppColors.border),
+                            _MenuRow(icon: Icons.favorite_outline, label: 'Favourites (${repo.savedProviderIds.length})', onTap: () => context.push('/saved-providers')),
+                            const Divider(height: 1, color: AppColors.border),
+                            _MenuRow(icon: Icons.calendar_today_outlined, label: 'My Appointments', onTap: () => context.go('/appointments')),
                             const Divider(height: 1, color: AppColors.border),
                             _MenuRow(icon: Icons.account_balance_wallet_outlined, label: 'Khade Wallet · ${formatNaira(user?.walletBalance ?? 0)}', onTap: () => context.push('/wallet')),
+                            const Divider(height: 1, color: AppColors.border),
+                            _MenuRow(icon: Icons.notifications_outlined, label: 'Notifications', onTap: () => context.push('/notifications')),
                             const Divider(height: 1, color: AppColors.border),
                             _MenuRow(icon: Icons.settings_outlined, label: 'Settings', onTap: () => context.push('/settings')),
                           ],
@@ -105,7 +129,7 @@ class ProfileScreen extends StatelessWidget {
                           )
                         else
                           FilledButton.icon(
-                            onPressed: () => context.push('/provider-onboarding'),
+                            onPressed: () => context.push('/provider-signup'),
                             icon: const Icon(Icons.storefront_outlined, size: 18),
                             label: const Text('Become a Provider'),
                             style: FilledButton.styleFrom(backgroundColor: AppColors.dark, padding: const EdgeInsets.symmetric(vertical: 14)),
@@ -119,15 +143,15 @@ class ProfileScreen extends StatelessWidget {
                             style: FilledButton.styleFrom(backgroundColor: AppColors.matchaDeep, padding: const EdgeInsets.symmetric(vertical: 14)),
                           ),
                         ],
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 12),
                         OutlinedButton.icon(
                           onPressed: () async {
-                            await auth.logout();
-                            await repo.initialize();
-                            if (context.mounted) context.go('/home');
+                            await AuthService.instance.logout();
+                            if (context.mounted) context.go('/splash');
                           },
-                          icon: const Icon(Icons.logout, size: 16),
-                          label: const Text('Sign Out'),
+                          icon: const Icon(Icons.logout, size: 18),
+                          label: const Text('Log out'),
+                          style: OutlinedButton.styleFrom(foregroundColor: AppColors.redDark, padding: const EdgeInsets.symmetric(vertical: 14)),
                         ),
                       ],
                     ],
@@ -144,17 +168,18 @@ class ProfileScreen extends StatelessWidget {
 
 class _StatBox extends StatelessWidget {
   const _StatBox({required this.value, required this.label});
-  final String value, label;
+  final String value;
+  final String label;
 
   @override
   Widget build(BuildContext context) {
     return Expanded(
       child: Container(
-        padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(12)),
         child: Column(children: [
-          Text(value, style: AppTheme.sans(18, color: AppColors.white, weight: FontWeight.w500)),
-          Text(label, style: AppTheme.sans(10, color: Colors.white.withValues(alpha: 0.6)), textAlign: TextAlign.center),
+          Text(value, style: AppTheme.serif(18, color: AppColors.white)),
+          Text(label, style: AppTheme.sans(10, color: Colors.white.withValues(alpha: 0.6))),
         ]),
       ),
     );
@@ -162,19 +187,30 @@ class _StatBox extends StatelessWidget {
 }
 
 class _MenuRow extends StatelessWidget {
-  const _MenuRow({required this.icon, required this.label, this.onTap});
+  const _MenuRow({required this.icon, required this.label, this.badge, this.onTap});
   final IconData icon;
   final String label;
+  final int? badge;
   final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     return ListTile(
+      leading: Icon(icon, color: AppColors.matcha, size: 22),
+      title: Text(label, style: AppTheme.sans(14)),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (badge != null)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+              decoration: BoxDecoration(color: AppColors.matcha, borderRadius: BorderRadius.circular(10)),
+              child: Text('$badge', style: AppTheme.sans(10, color: Colors.white, weight: FontWeight.w600)),
+            ),
+          const Icon(Icons.chevron_right, color: AppColors.soft),
+        ],
+      ),
       onTap: onTap,
-      leading: Icon(icon, color: AppColors.matcha, size: 20),
-      title: Text(label, style: AppTheme.sans(13)),
-      trailing: const Icon(Icons.chevron_right, color: AppColors.soft, size: 20),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16),
     );
   }
 }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../config/app_mode.dart';
 import '../services/auth_service.dart';
 import '../services/khade_repository.dart';
 import '../theme/app_colors.dart';
@@ -16,10 +17,18 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final _email = TextEditingController(text: 'customer@khade.ng');
-  final _password = TextEditingController(text: 'password123');
+  late final TextEditingController _email;
+  late final TextEditingController _password;
   bool _loading = false;
   String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    final isPro = AppConfig.isProviderApp || widget.roleHint == 'provider';
+    _email = TextEditingController(text: isPro ? 'provider@khade.ng' : 'customer@khade.ng');
+    _password = TextEditingController(text: 'password123');
+  }
 
   @override
   void dispose() {
@@ -36,13 +45,15 @@ class _LoginScreenState extends State<LoginScreen> {
       if (!mounted) return;
       if (user.isAdmin) {
         context.go('/admin');
-      } else if (user.isProvider || widget.roleHint == 'provider') {
+      } else if (user.isProvider || widget.roleHint == 'provider' || AppConfig.isProviderApp) {
         context.go('/provider-home');
       } else {
         context.go('/home');
       }
     } catch (e) {
-      setState(() => _error = e.toString().replaceFirst('ApiException(401): ', ''));
+      setState(() => _error = e.toString()
+          .replaceFirst('ApiException(0): ', '')
+          .replaceFirst('ApiException(401): ', ''));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -57,8 +68,13 @@ class _LoginScreenState extends State<LoginScreen> {
           padding: const EdgeInsets.all(24),
           children: [
             IconButton(alignment: Alignment.centerLeft, onPressed: () => context.pop(), icon: const Icon(Icons.arrow_back, color: AppColors.matcha)),
-            Text('Welcome back', style: AppTheme.serif(32)),
-            Text('Sign in to book, track & manage your beauty appointments', style: AppTheme.sans(13, color: AppColors.soft)),
+            Text(AppConfig.isProviderApp ? 'Khade Pro' : 'Welcome back', style: AppTheme.serif(32)),
+            Text(
+              AppConfig.isProviderApp
+                  ? 'Sign in to manage bookings, earnings & your profile'
+                  : 'Sign in to book, track & manage your beauty appointments',
+              style: AppTheme.sans(13, color: AppColors.soft),
+            ),
             const SizedBox(height: 28),
             if (_error != null)
               Container(
@@ -74,20 +90,25 @@ class _LoginScreenState extends State<LoginScreen> {
             Text('Demo: customer@ / provider@ / admin@khade.ng · password123', style: AppTheme.sans(10, color: AppColors.soft)),
             const SizedBox(height: 20),
             PrimaryButton(label: _loading ? 'Signing in...' : 'Sign In', onPressed: _loading ? null : _login),
-            const SizedBox(height: 12),
-            OutlinedButton(
-              onPressed: _loading ? null : () async {
-                await AuthService.instance.continueAsGuest();
-                await KhadeRepository.instance.initialize();
-                if (context.mounted) context.go('/home');
-              },
-              child: const Text('Continue as guest'),
-            ),
+            if (!AppConfig.isProviderApp) ...[
+              const SizedBox(height: 12),
+              OutlinedButton(
+                onPressed: _loading ? null : () async {
+                  await AuthService.instance.continueAsGuest();
+                  await KhadeRepository.instance.initialize();
+                  if (context.mounted) context.go('/home');
+                },
+                child: const Text('Continue as guest'),
+              ),
+            ],
             const SizedBox(height: 16),
             Center(
               child: TextButton(
-                onPressed: () => context.push('/register'),
-                child: Text('New here? Create account', style: AppTheme.sans(12, color: AppColors.matcha)),
+                onPressed: () => context.push(AppConfig.isProviderApp ? '/provider-signup' : '/register'),
+                child: Text(
+                  AppConfig.isProviderApp ? 'New pro? Join Khade' : 'New here? Create account',
+                  style: AppTheme.sans(12, color: AppColors.matcha),
+                ),
               ),
             ),
           ],

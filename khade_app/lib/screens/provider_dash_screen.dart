@@ -3,7 +3,6 @@ import 'package:go_router/go_router.dart';
 import '../models/models.dart';
 import '../services/auth_service.dart';
 import '../services/khade_api.dart';
-import '../services/provider_gps_service.dart';
 import '../services/khade_repository.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_theme.dart';
@@ -23,41 +22,13 @@ class ProviderDashScreen extends StatefulWidget {
 class _ProviderDashScreenState extends State<ProviderDashScreen> {
   int _tab = 0;
   Map<String, dynamic> _earnings = {};
-  bool _sharingGps = false;
 
   int get _providerId => widget.providerId ?? AuthService.instance.authUser?.providerId ?? 1;
 
   @override
   void initState() {
     super.initState();
-    _sharingGps = ProviderGpsService.instance.isSharing;
     _loadEarnings();
-  }
-
-  Future<void> _toggleGps() async {
-    if (_sharingGps) {
-      ProviderGpsService.instance.stopSharing();
-      setState(() => _sharingGps = false);
-      return;
-    }
-    final ok = await ProviderGpsService.instance.startSharing();
-    if (!mounted) return;
-    if (!ok) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Location permission required for live tracking'), backgroundColor: AppColors.redDark),
-      );
-      return;
-    }
-    setState(() => _sharingGps = true);
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Live GPS sharing on — customers see your position'), backgroundColor: AppColors.matcha),
-    );
-  }
-
-  @override
-  void dispose() {
-    if (_sharingGps) ProviderGpsService.instance.stopSharing();
-    super.dispose();
   }
 
   Future<void> _loadEarnings() async {
@@ -124,36 +95,6 @@ class _ProviderDashScreenState extends State<ProviderDashScreen> {
                 ),
               ),
               const Padding(padding: EdgeInsets.fromLTRB(20, 8, 20, 0), child: ConnectionBanner()),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
-                child: Material(
-                  color: _sharingGps ? AppColors.matchaPale : AppColors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  child: InkWell(
-                    onTap: _toggleGps,
-                    borderRadius: BorderRadius.circular(12),
-                    child: Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: Row(
-                        children: [
-                          Icon(_sharingGps ? Icons.gps_fixed : Icons.gps_off, color: AppColors.matcha),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(_sharingGps ? 'Live GPS on' : 'Share live location', style: AppTheme.sans(13, weight: FontWeight.w500)),
-                                Text('Customers see you on the map when on the way', style: AppTheme.sans(10, color: AppColors.soft)),
-                              ],
-                            ),
-                          ),
-                          Switch(value: _sharingGps, onChanged: (_) => _toggleGps(), activeThumbColor: AppColors.matcha),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
               Padding(
                 padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
                 child: _ViewSwitcher(

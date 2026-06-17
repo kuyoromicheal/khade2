@@ -17,6 +17,7 @@ const DEFAULT_SLOTS = {
 };
 
 async function ensureDemoAccounts(data) {
+  const changed = new Set();
   const demos = [
     { email: 'customer@khade.ng', password: 'password123', name: 'Adaeze Chukwu', role: 'customer', city: 'Abuja', tier: 'Gold', wallet: 85000, bookings: 12 },
     { email: 'provider@khade.ng', password: 'password123', name: 'Zara Okonkwo', role: 'provider', city: 'Abuja', providerLink: true },
@@ -29,12 +30,15 @@ async function ensureDemoAccounts(data) {
       if (!existing.password_hash) {
         existing.password_hash = await hashPassword(demo.password);
         existing.role = demo.role;
+        changed.add('users');
       }
       if (demo.role === 'provider' && demo.providerLink && !existing.provider_id) {
         const provider = data.providers.find((p) => p.status === 'active');
         if (provider) {
           existing.provider_id = provider.id;
           provider.owner_user_id = existing.id;
+          changed.add('users');
+          changed.add('providers');
         }
       }
       continue;
@@ -66,7 +70,10 @@ async function ensureDemoAccounts(data) {
       gold_subscriber: 0,
       created_at: new Date().toISOString(),
     });
+    changed.add('users');
+    if (providerId) changed.add('providers');
   }
+  return [...changed];
 }
 
 router.post('/register', async (req, res) => {
@@ -175,13 +182,13 @@ router.post('/register', async (req, res) => {
     });
   }
 
-  await save(data);
+  await save(data, ['providers', 'users', 'wallet_transactions', 'notifications']);
 
   if (role === 'provider' && user.provider_id) {
     const provider = data.providers.find((p) => p.id === user.provider_id);
     if (provider) {
       provider.owner_user_id = id;
-      await save(data);
+      await save(data, ['providers']);
     }
   }
 
@@ -202,8 +209,8 @@ router.post('/login', async (req, res) => {
   }
 
   const data = await load();
-  await ensureDemoAccounts(data);
-  await save(data);
+  const changed = await ensureDemoAccounts(data);
+  if (changed.length) await save(data, [...changed, '_counters']);
 
   const user = data.users.find((u) => u.email?.toLowerCase() === email.toLowerCase());
   if (!user || !(await verifyPassword(password, user.password_hash))) {
@@ -220,8 +227,8 @@ router.get('/me', requireAuth, async (req, res) => {
 
 router.post('/guest', async (_req, res) => {
   const data = await load();
-  await ensureDemoAccounts(data);
-  await save(data);
+  const changed = await ensureDemoAccounts(data);
+  if (changed.length) await save(data, [...changed, '_counters']);
   const guest = data.users.find((u) => u.id === 1) || data.users[0];
   if (!guest) return res.status(404).json({ error: 'No guest user' });
   res.json({ data: { user: mapAuthUser(guest), guest: true } });

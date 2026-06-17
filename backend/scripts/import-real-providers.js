@@ -23,6 +23,10 @@ const CATEGORY_META = {
   skincare: { label: 'Skincare', emoji: '🧴' },
   braids: { label: 'Braids', emoji: '🪡' },
   lashes: { label: 'Lashes', emoji: '👁️' },
+  brows_lashes: { label: 'Brows & Lashes', emoji: '👁️' },
+  dental: { label: 'Dental', emoji: '🦷' },
+  facials: { label: 'Facials', emoji: '🧖‍♂️' },
+  massage: { label: 'Massage', emoji: '💆' },
   wellness: { label: 'Wellness', emoji: '💆' },
 };
 
@@ -97,6 +101,16 @@ async function main() {
       image_url: row.image_url || providerImage(row.category_slug, providerId),
       avatar_url: row.avatar_url || providerAvatar(row.category_slug, providerId),
       phone: row.phone || null,
+      bio: row.bio || '',
+      provider_type: row.provider_type || 'mobile',
+      provider_subtype: row.provider_subtype || (row.provider_type === 'salon' ? 'salon' : row.provider_type === 'mobile' ? 'mobile' : 'solo_pro'),
+      work_locations: row.work_locations || ['client_home'],
+      coverage_areas: row.coverage_areas || [row.area],
+      travel_radius_km: row.travel_radius_km ?? 10,
+      travel_fee_per_km: row.travel_fee_per_km ?? 0,
+      min_travel_fee: row.min_travel_fee ?? 0,
+      base_area: row.base_area || row.area || null,
+      visit_types: row.provider_type === 'salon' ? 'salon' : row.provider_type === 'both' ? 'both' : 'home',
     });
 
     for (const s of row.services || []) {

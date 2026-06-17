@@ -1,14 +1,20 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../constants/khade_categories.dart';
 import '../models/models.dart';
 import '../services/khade_repository.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_theme.dart';
+import '../utils/tier_utils.dart';
 import '../widgets/api_widgets.dart';
 import '../widgets/common_widgets.dart';
 import '../widgets/connection_banner.dart';
 import '../widgets/khade_image.dart';
+import '../widgets/category_grid.dart';
 import '../widgets/provider_widgets.dart';
+import '../widgets/tier_badge.dart';
+import '../widgets/wallet_strip.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -19,10 +25,33 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _activeCat = 0;
+  Timer? _walletPoll;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      KhadeRepository.instance.loadRecentlyViewed();
+      KhadeRepository.instance.refreshWalletTransactions();
+    });
+    _walletPoll = Timer.periodic(const Duration(seconds: 12), (_) {
+      KhadeRepository.instance.refreshWalletTransactions();
+    });
+  }
+
+  @override
+  void dispose() {
+    _walletPoll?.cancel();
+    super.dispose();
+  }
+
+  String get _catLabel => KhadeCategories.home[_activeCat.clamp(0, KhadeCategories.home.length - 1)].label;
 
   Future<void> _openLocationPicker() async {
     await context.push('/location-picker');
   }
+
+  void _openProvider(int id) => context.push('/provider/$id');
 
   @override
   Widget build(BuildContext context) {
@@ -31,14 +60,17 @@ class _HomeScreenState extends State<HomeScreen> {
       builder: (context, _) {
         final repo = KhadeRepository.instance;
         final user = repo.user;
-        final cats = repo.categories;
-        final catLabel = cats.isNotEmpty ? cats[_activeCat.clamp(0, cats.length - 1)].label : 'All';
-        final featured = repo.featured;
+        final cats = repo.displayCategories;
+        final recommended = repo.recommendedProviders(categoryLabel: _catLabel).take(10).toList();
+        final nearby = repo.nearbyProviders(categoryLabel: _catLabel);
+        final recent = repo.recentlyViewed.take(10).toList();
 
         return Column(
           children: [
             _HomeHeader(
+              greeting: TierUtils.greeting(),
               userName: user?.name.split(' ').first ?? 'Guest',
+              tier: user?.tier ?? 'Bronze',
               locationLabel: repo.locationLabel,
               usingGps: repo.hasRealLocation,
               pinAdjusted: repo.pinAdjusted,
@@ -52,7 +84,11 @@ class _HomeScreenState extends State<HomeScreen> {
                   ? const LoadingPlaceholder()
                   : RefreshIndicator(
                       color: AppColors.matcha,
-                      onRefresh: repo.refresh,
+                      onRefresh: () async {
+                        await repo.refresh();
+                        await repo.loadRecentlyViewed();
+                        await repo.refreshWalletTransactions();
+                      },
                       child: ListView(
                         padding: EdgeInsets.zero,
                         children: [
@@ -80,20 +116,29 @@ class _HomeScreenState extends State<HomeScreen> {
                               ),
                             ),
                           _SearchBar(onTap: () => context.go('/explore')),
-                          if (cats.isNotEmpty)
-                            _CategoryRow(
-                              categories: cats,
-                              active: _activeCat,
-                              onTap: (i) => setState(() => _activeCat = i),
-                            ),
-                          _PromoBanner(onBook: () => context.push('/booking?providerId=${featured.isNotEmpty ? featured.first.id : 1}')),
-                          SectionTitle(title: 'Featured Near You', action: 'See all', onAction: () => context.go('/explore')),
-                          _FeaturedRow(providers: featured.take(10).toList()),
-                          SectionTitle(title: 'Top Providers', action: '${repo.providers.length} total', onAction: () => context.go('/explore')),
-                          for (final p in repo.filterProviders(categoryLabel: catLabel).take(5)) _providerCard(context, p),
-                          SectionTitle(title: 'Inspiration', action: 'See all', onAction: () => context.go('/feed')),
-                          for (final post in repo.feed.take(1)) _feedPreview(context, post),
-                          const SizedBox(height: 20),
+                          const WalletStrip(),
+                          CategoryGrid(
+                            activeIndex: _activeCat,
+                            onTap: (i) {
+                              setState(() => _activeCat = i);
+                              final slug = cats[i].slug;
+                              if (slug != 'all') context.go('/explore?category=$slug');
+                            },
+                            onSeeAll: () => _showAllCategories(context, cats),
+                          ),
+                          if (recommended.isNotEmpty) ...[
+                            SectionTitle(title: 'Recommended for You', action: 'See all', onAction: () => context.go('/explore')),
+                            _ProviderCarousel(providers: recommended, onTap: _openProvider),
+                          ],
+                          if (recent.isNotEmpty) ...[
+                            SectionTitle(title: 'Recently Viewed', action: 'See all', onAction: () => context.go('/explore')),
+                            _ProviderCarousel(providers: recent, onTap: _openProvider),
+                          ],
+                          SectionTitle(title: 'Near You · ${repo.locationLabel.split(',').first}', action: 'Map', onAction: () => context.go('/explore')),
+                          for (final p in nearby) _NearbyCard(provider: p, onTap: () => _openProvider(p.id)),
+                          SectionTitle(title: 'Top Rated Near You', action: 'Explore', onAction: () => context.go('/explore')),
+                          for (final p in recommended.take(2)) _NearbyCard(provider: p, onTap: () => _openProvider(p.id)),
+                          const SizedBox(height: 24),
                         ],
                       ),
                     ),
@@ -104,26 +149,52 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _providerCard(BuildContext context, ProviderModel p) => ProviderCard(
-        emoji: p.emoji,
-        name: p.name,
-        category: p.category,
-        rating: p.rating.toStringAsFixed(1),
-        reviews: p.reviewCount,
-        distance: p.distanceLabel,
-        area: p.area,
-        price: p.priceLabel,
-        badge: p.badge ?? 'Verified',
-        gradient: [colorFromHex(p.gradientStart), colorFromHex(p.gradientEnd)],
-        imageUrl: p.imageUrl,
-        onTap: () => context.push('/booking?providerId=${p.id}'),
-      );
+  Future<void> _showAllCategories(BuildContext context, List<CategoryModel> cats) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.white,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) {
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('All Categories', style: AppTheme.serif(22)),
+              const SizedBox(height: 16),
+              Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                children: [
+                  for (var i = 0; i < cats.length; i++)
+                    CategoryChip(
+                      slug: cats[i].slug,
+                      emoji: cats[i].emoji,
+                      label: cats[i].label,
+                      imageUrl: cats[i].imageUrl,
+                      active: _activeCat == i,
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        setState(() => _activeCat = i);
+                        if (cats[i].slug != 'all') context.go('/explore?category=${cats[i].slug}');
+                      },
+                    ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
 
   Widget _feedPreview(BuildContext context, FeedPostModel post) => GestureDetector(
         onTap: () => context.go('/feed'),
         child: Container(
           margin: const EdgeInsets.fromLTRB(20, 0, 20, 12),
-          height: 200,
+          height: 180,
           decoration: BoxDecoration(borderRadius: BorderRadius.circular(16), border: Border.all(color: AppColors.border)),
           clipBehavior: Clip.antiAlias,
           child: Stack(
@@ -145,7 +216,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   ],
                 ),
               ),
-              const Positioned(right: 14, top: 14, child: Icon(Icons.play_circle_outline, color: Colors.white, size: 32)),
             ],
           ),
         ),
@@ -154,7 +224,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
 class _HomeHeader extends StatelessWidget {
   const _HomeHeader({
+    required this.greeting,
     required this.userName,
+    required this.tier,
     required this.locationLabel,
     required this.usingGps,
     required this.pinAdjusted,
@@ -163,7 +235,10 @@ class _HomeHeader extends StatelessWidget {
     required this.onNotifications,
     required this.onProfile,
   });
+
+  final String greeting;
   final String userName;
+  final String tier;
   final String locationLabel;
   final bool usingGps;
   final bool pinAdjusted;
@@ -183,68 +258,60 @@ class _HomeHeader extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(greeting.toUpperCase(), style: AppTheme.sans(10, color: AppColors.soft).copyWith(letterSpacing: 1.2)),
+                      Row(
+                        children: [
+                          Flexible(child: Text('$userName ✨', style: AppTheme.serif(22), overflow: TextOverflow.ellipsis)),
+                          const SizedBox(width: 8),
+                          TierBadge(tier: tier, compact: true),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                Stack(
+                  clipBehavior: Clip.none,
                   children: [
-                    Text('GOOD MORNING', style: AppTheme.sans(11, color: AppColors.soft).copyWith(letterSpacing: 1)),
-                    Text('$userName ✨', style: AppTheme.serif(24)),
+                    IconButton(icon: const Icon(Icons.notifications_outlined, size: 22), onPressed: onNotifications),
+                    if (unreadCount > 0)
+                      Positioned(
+                        top: 8, right: 8,
+                        child: Container(
+                          padding: unreadCount > 9 ? const EdgeInsets.symmetric(horizontal: 4, vertical: 1) : null,
+                          constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                          decoration: BoxDecoration(color: AppColors.red, shape: BoxShape.circle, border: Border.all(color: AppColors.white, width: 1.5)),
+                          alignment: Alignment.center,
+                          child: Text(unreadCount > 9 ? '9+' : '$unreadCount', style: AppTheme.sans(9, color: AppColors.white, weight: FontWeight.w600)),
+                        ),
+                      ),
                   ],
                 ),
-                Row(
-                  children: [
-                    Stack(
-                      clipBehavior: Clip.none,
-                      children: [
-                        IconButton(icon: const Icon(Icons.notifications_outlined, size: 22), onPressed: onNotifications),
-                        if (unreadCount > 0)
-                          Positioned(
-                            top: 8,
-                            right: 8,
-                            child: Container(
-                              padding: unreadCount > 9 ? const EdgeInsets.symmetric(horizontal: 4, vertical: 1) : null,
-                              constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
-                              decoration: BoxDecoration(
-                                color: AppColors.red,
-                                shape: unreadCount > 9 ? BoxShape.rectangle : BoxShape.circle,
-                                borderRadius: unreadCount > 9 ? BorderRadius.circular(8) : null,
-                                border: Border.all(color: AppColors.cream, width: 1.5),
-                              ),
-                              alignment: Alignment.center,
-                              child: Text(
-                                unreadCount > 9 ? '9+' : '$unreadCount',
-                                style: AppTheme.sans(9, color: AppColors.white, weight: FontWeight.w600),
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                    GestureDetector(
-                      onTap: onProfile,
-                      child: CircleAvatar(radius: 17, backgroundColor: AppColors.matcha, child: Text(userName.isNotEmpty ? userName[0].toUpperCase() : 'A', style: AppTheme.sans(13, color: AppColors.white, weight: FontWeight.w500))),
-                    ),
-                  ],
+                GestureDetector(
+                  onTap: onProfile,
+                  child: CircleAvatar(radius: 17, backgroundColor: AppColors.matcha, child: Text(userName.isNotEmpty ? userName[0].toUpperCase() : 'A', style: AppTheme.sans(13, color: AppColors.white, weight: FontWeight.w500))),
                 ),
               ],
             ),
             const SizedBox(height: 8),
             GestureDetector(
               onTap: onOpenLocation,
-              child: Row(
-                children: [
-                  Icon(pinAdjusted ? Icons.edit_location_alt : (usingGps ? Icons.my_location : Icons.location_on_outlined), size: 14, color: AppColors.matcha),
-                  const SizedBox(width: 4),
-                  Expanded(
-                    child: Text(
-                      locationLabel,
-                      style: AppTheme.sans(11, color: AppColors.matcha),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  const Icon(Icons.keyboard_arrow_down, size: 14, color: AppColors.matcha),
-                ],
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(color: AppColors.cream, borderRadius: BorderRadius.circular(20), border: Border.all(color: AppColors.border)),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(pinAdjusted ? Icons.edit_location_alt : (usingGps ? Icons.my_location : Icons.location_on_outlined), size: 14, color: AppColors.matcha),
+                    const SizedBox(width: 4),
+                    Flexible(child: Text(locationLabel, style: AppTheme.sans(11, color: AppColors.matcha), maxLines: 1, overflow: TextOverflow.ellipsis)),
+                    const Icon(Icons.keyboard_arrow_down, size: 14, color: AppColors.matcha),
+                  ],
+                ),
               ),
             ),
           ],
@@ -264,138 +331,126 @@ class _SearchBar extends StatelessWidget {
       onTap: onTap,
       child: Container(
         margin: const EdgeInsets.fromLTRB(20, 14, 20, 0),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(color: AppColors.cream, borderRadius: BorderRadius.circular(12), border: Border.all(color: AppColors.border)),
-        child: Row(children: [const Icon(Icons.search, size: 18, color: AppColors.soft), const SizedBox(width: 8), Text('Search ${KhadeRepository.instance.providers.length} providers...', style: AppTheme.sans(13, color: const Color(0xFFBBBBBB)))]),
+        child: Row(children: [
+          const Icon(Icons.search, size: 18, color: AppColors.soft),
+          const SizedBox(width: 8),
+          Text('Search services, providers, looks...', style: AppTheme.sans(13, color: const Color(0xFFBBBBBB))),
+        ]),
       ),
     );
   }
 }
 
-class _CategoryRow extends StatelessWidget {
-  const _CategoryRow({required this.categories, required this.active, required this.onTap});
-  final List<CategoryModel> categories;
-  final int active;
+class _ProviderCarousel extends StatelessWidget {
+  const _ProviderCarousel({required this.providers, required this.onTap});
+  final List<ProviderModel> providers;
   final ValueChanged<int> onTap;
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 96,
+      height: 200,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
-        itemCount: categories.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 10),
-        itemBuilder: (_, i) => CategoryChip(
-          emoji: categories[i].emoji,
-          label: categories[i].label,
-          imageUrl: categories[i].imageUrl,
-          active: active == i,
-          onTap: () => onTap(i),
-        ),
-      ),
-    );
-  }
-}
-
-class _PromoBanner extends StatelessWidget {
-  const _PromoBanner({required this.onBook});
-  final VoidCallback onBook;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(color: AppColors.matchaDeep, borderRadius: BorderRadius.circular(16)),
-      child: Stack(
-        children: [
-          Text('✦ LIMITED OFFER', style: AppTheme.sans(10, color: AppColors.gold).copyWith(letterSpacing: 2)),
-          Padding(
-            padding: const EdgeInsets.only(top: 20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Your first\nbooking is on us', style: AppTheme.serif(22, weight: FontWeight.w300, color: AppColors.cream)),
-                const SizedBox(height: 12),
-                FilledButton(onPressed: onBook, style: FilledButton.styleFrom(backgroundColor: AppColors.gold, foregroundColor: AppColors.dark, padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8), minimumSize: Size.zero), child: Text('Book Now →', style: AppTheme.sans(11, weight: FontWeight.w500))),
-              ],
-            ),
-          ),
-          const Positioned(right: 0, top: 20, child: Text('🌿', style: TextStyle(fontSize: 52, color: Color(0x4DFFFFFF)))),
-        ],
-      ),
-    );
-  }
-}
-
-class _FeaturedRow extends StatelessWidget {
-  const _FeaturedRow({required this.providers});
-  final List<ProviderModel> providers;
-
-  @override
-  Widget build(BuildContext context) {
-    if (providers.isEmpty) return const SizedBox(height: 8);
-    return SizedBox(
-      height: 180,
-      child: ListView(
-        scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 20),
-        children: [
-          for (final p in providers)
-            _FeatCard(
-              emoji: p.emoji,
-              name: p.name,
-              sub: '⭐ ${p.rating.toStringAsFixed(1)} · ${p.distanceKm}km · ${p.etaLabel}',
-              price: p.priceLabel,
-              imageUrl: p.imageUrl,
-              colors: [colorFromHex(p.gradientStart), colorFromHex(p.gradientEnd)],
-              onTap: () => context.push('/booking?providerId=${p.id}'),
-            ),
-        ],
+        itemCount: providers.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 12),
+        itemBuilder: (_, i) {
+          final p = providers[i];
+          return _RecCard(provider: p, onTap: () => onTap(p.id));
+        },
       ),
     );
   }
 }
 
-class _FeatCard extends StatelessWidget {
-  const _FeatCard({required this.emoji, required this.name, required this.sub, required this.price, required this.onTap, required this.colors, this.imageUrl});
-  final String emoji, name, sub, price;
-  final String? imageUrl;
+class _RecCard extends StatelessWidget {
+  const _RecCard({required this.provider, required this.onTap});
+  final ProviderModel provider;
   final VoidCallback onTap;
-  final List<Color> colors;
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: 200,
-        height: 180,
-        margin: const EdgeInsets.only(right: 12),
+        width: 168,
         decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(14), border: Border.all(color: AppColors.border)),
         clipBehavior: Clip.antiAlias,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            SizedBox(height: 108, child: KhadeImage(url: imageUrl, fallbackUrl: imageUrl, gradient: colors, emojiSize: 36)),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(name, style: AppTheme.serif(14, weight: FontWeight.w500), maxLines: 1, overflow: TextOverflow.ellipsis),
-                    const SizedBox(height: 2),
-                    Text(sub, style: AppTheme.sans(10, color: AppColors.soft), maxLines: 1, overflow: TextOverflow.ellipsis),
-                    Text(price, style: AppTheme.sans(12, color: AppColors.matcha, weight: FontWeight.w500), maxLines: 1, overflow: TextOverflow.ellipsis),
-                  ],
-                ),
+            SizedBox(
+              height: 100,
+              width: double.infinity,
+              child: KhadeImage(
+                url: provider.imageUrl,
+                fallbackUrl: provider.imageUrl,
+                gradient: [colorFromHex(provider.gradientStart), colorFromHex(provider.gradientEnd)],
+                emojiSize: 32,
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(provider.name, style: AppTheme.serif(14), maxLines: 1, overflow: TextOverflow.ellipsis),
+                  Text('${provider.emoji} ${provider.category} · ⭐ ${provider.rating.toStringAsFixed(1)}', style: AppTheme.sans(10, color: AppColors.soft), maxLines: 1, overflow: TextOverflow.ellipsis),
+                  Text('${provider.distanceKm}km · ${provider.priceLabel}', style: AppTheme.sans(11, color: AppColors.matcha, weight: FontWeight.w500)),
+                ],
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _NearbyCard extends StatelessWidget {
+  const _NearbyCard({required this.provider, required this.onTap});
+  final ProviderModel provider;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(14), border: Border.all(color: AppColors.border)),
+          child: Row(
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: SizedBox(
+                  width: 72, height: 72,
+                  child: KhadeImage(url: provider.imageUrl, fallbackUrl: provider.imageUrl, gradient: [colorFromHex(provider.gradientStart), colorFromHex(provider.gradientEnd)]),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(provider.name, style: AppTheme.sans(14, weight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
+                    Text('${provider.emoji} ${provider.category} · ⭐ ${provider.rating.toStringAsFixed(1)} (${provider.reviewCount})', style: AppTheme.sans(11, color: AppColors.soft)),
+                    Text('${provider.area} · ${provider.priceLabel}', style: AppTheme.sans(11, color: AppColors.matcha)),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(color: AppColors.matchaPale, borderRadius: BorderRadius.circular(8)),
+                child: Text('${provider.distanceKm}km', style: AppTheme.sans(10, color: AppColors.matcha, weight: FontWeight.w600)),
+              ),
+            ],
+          ),
         ),
       ),
     );

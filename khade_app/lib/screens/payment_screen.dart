@@ -17,6 +17,9 @@ class PaymentScreen extends StatefulWidget {
     this.serviceName = 'Full Glam Makeup',
     this.providerName = 'Zara Beauty Studio',
     this.price = 12000,
+    this.travelFee = 0,
+    this.serviceFee = 0,
+    this.total = 0,
     this.note,
   });
 
@@ -27,6 +30,9 @@ class PaymentScreen extends StatefulWidget {
   final String serviceName;
   final String providerName;
   final int price;
+  final int travelFee;
+  final int serviceFee;
+  final int total;
   final String? note;
 
   @override
@@ -34,68 +40,62 @@ class PaymentScreen extends StatefulWidget {
 }
 
 class _PaymentScreenState extends State<PaymentScreen> {
-  int _selected = 0;
+  String _method = 'cash'; // cash | wallet
   bool _paying = false;
 
-  int get _fee => (widget.price * 0.1).round();
-  int get _total => widget.price + _fee;
+  int get _subtotal => widget.price;
+  int get _travel => widget.travelFee;
+  int get _fee => widget.serviceFee > 0 ? widget.serviceFee : ((_subtotal + _travel) * 0.1).round();
+  int get _total => widget.total > 0 ? widget.total : _subtotal + _travel + _fee.round();
 
-  String get _paymentMethod => switch (_selected) {
-        0 => 'paystack',
-        1 => 'cash',
-        2 => 'transfer',
-        _ => 'wallet',
-      };
+  Future<void> _topUpShortfall(int shortfall) async {
+    final repo = KhadeRepository.instance;
+    final init = await repo.initializePaystack(shortfall);
+    if (!mounted || init == null) {
+      if (mounted && repo.lastError != null) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(repo.lastError!), backgroundColor: AppColors.redDark));
+      }
+      return;
+    }
+    final ref = await Navigator.push<String>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => PaystackCheckoutScreen(
+          authorizationUrl: init.authorizationUrl,
+          reference: init.reference,
+          amountLabel: formatNaira(shortfall),
+        ),
+      ),
+    );
+    if (!mounted || ref == null) return;
+    final verified = await repo.verifyPaystack(ref);
+    if (!verified) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Top-up not verified'), backgroundColor: AppColors.redDark));
+      }
+      return;
+    }
+    await repo.topUpWallet(shortfall, paystackReference: ref);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${formatNaira(shortfall)} added to wallet'), backgroundColor: AppColors.matcha));
+      setState(() => _method = 'wallet');
+    }
+  }
 
   Future<void> _pay() async {
     setState(() => _paying = true);
     final repo = KhadeRepository.instance;
 
     try {
-      if (_selected == 0) {
-        final init = await repo.initializePaystack(_total);
-        if (!mounted || init == null) {
-          if (mounted && repo.lastError != null) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(repo.lastError!), backgroundColor: AppColors.redDark),
-            );
-          }
-          return;
-        }
-        final ref = await Navigator.push<String>(
-          context,
-          MaterialPageRoute(
-            builder: (_) => PaystackCheckoutScreen(
-              authorizationUrl: init.authorizationUrl,
-              reference: init.reference,
-              amountLabel: formatNaira(_total),
-            ),
-          ),
-        );
-        if (!mounted || ref == null) return;
-        final verified = await repo.verifyPaystack(ref);
-        if (!verified || !mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Payment not verified'), backgroundColor: AppColors.redDark),
-          );
-          return;
-        }
-      } else if (_selected == 2) {
-        final ok = await _showBankTransferDialog();
-        if (!ok || !mounted) return;
-      } else if (_selected == 3) {
+      if (_method == 'wallet') {
         final balance = repo.user?.walletBalance ?? 0;
         if (balance < _total) {
-          if (!mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Insufficient balance. You have ${formatNaira(balance)}'), backgroundColor: AppColors.redDark),
-          );
+          await _topUpShortfall(_total - balance);
           return;
         }
       }
 
       final homeAddress = widget.locationType == 'home' ? repo.userAddress : null;
-
       final result = await repo.completePaymentAndBook(
         providerId: widget.providerId,
         serviceId: widget.serviceId,
@@ -103,7 +103,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
         locationType: widget.locationType,
         address: homeAddress,
         totalAmount: _total,
-        paymentMethod: _paymentMethod,
+        paymentMethod: _method,
         note: widget.note,
       );
 
@@ -122,44 +122,14 @@ class _PaymentScreenState extends State<PaymentScreen> {
     }
   }
 
-  Future<bool> _showBankTransferDialog() async {
-    return await showDialog<bool>(
-          context: context,
-          builder: (ctx) => AlertDialog(
-            title: Text('Bank Transfer', style: AppTheme.serif(18)),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Transfer ${formatNaira(_total)} to:', style: AppTheme.sans(12)),
-                const SizedBox(height: 8),
-                Text('Khade Beauty Ltd', style: AppTheme.sans(13, weight: FontWeight.w500)),
-                Text('GTBank · 0123456789', style: AppTheme.sans(12, color: AppColors.mid)),
-                const SizedBox(height: 8),
-                Text('Use ref: KHADE${DateTime.now().millisecondsSinceEpoch % 10000}', style: AppTheme.sans(11, color: AppColors.matcha)),
-              ],
-            ),
-            actions: [
-              TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-              FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text("I've Paid")),
-            ],
-          ),
-        ) ??
-        false;
-  }
-
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
       listenable: KhadeRepository.instance,
       builder: (context, _) {
         final walletBal = KhadeRepository.instance.user?.walletBalance ?? 0;
-        final methods = [
-          ('💳', 'Paystack', 'Card, Transfer, USSD & more'),
-          ('💵', 'Pay on Arrival', 'Cash or POS at location'),
-          ('🏦', 'Bank Transfer', 'Direct bank payment'),
-          ('👛', 'Khade Wallet', 'Balance: ${formatNaira(walletBal)}'),
-        ];
+        final canPayWallet = walletBal >= _total;
+        final shortfall = _total - walletBal;
 
         return Scaffold(
           backgroundColor: AppColors.cream,
@@ -178,49 +148,52 @@ class _PaymentScreenState extends State<PaymentScreen> {
                         children: [
                           Text('ORDER SUMMARY', style: AppTheme.sans(10, color: AppColors.soft).copyWith(letterSpacing: 1)),
                           const SizedBox(height: 8),
-                          _row(widget.serviceName, formatNaira(widget.price)),
-                          _row('${widget.providerName} · ${formatBookingDate(widget.scheduledAt)}', '', soft: true),
+                          _row(widget.serviceName, formatNaira(_subtotal)),
+                          if (_travel > 0) _row('Travel fee', formatNaira(_travel), soft: true),
                           _row('Service fee (10%)', formatNaira(_fee), soft: true),
+                          _row('${widget.providerName} · ${formatBookingDate(widget.scheduledAt)}', '', soft: true),
                           const Divider(color: AppColors.matcha, height: 20),
                           _row('Total', formatNaira(_total), bold: true),
                         ],
                       ),
                     ),
                     const SizedBox(height: 20),
-                    Text('CHOOSE PAYMENT METHOD', style: AppTheme.sans(11, color: AppColors.soft).copyWith(letterSpacing: 1.5)),
+                    Text('HOW WOULD YOU LIKE TO PAY?', style: AppTheme.sans(11, color: AppColors.soft).copyWith(letterSpacing: 1.5)),
                     const SizedBox(height: 12),
-                    for (var i = 0; i < methods.length; i++)
-                      GestureDetector(
-                        onTap: () => setState(() => _selected = i),
-                        child: Container(
-                          margin: const EdgeInsets.only(bottom: 10),
-                          padding: const EdgeInsets.all(14),
-                          decoration: BoxDecoration(
-                            color: _selected == i ? AppColors.matchaPale : AppColors.white,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: _selected == i ? AppColors.matcha : AppColors.border),
-                          ),
-                          child: Row(
-                            children: [
-                              Text(methods[i].$1, style: const TextStyle(fontSize: 22)),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(methods[i].$2, style: AppTheme.sans(13, weight: FontWeight.w500)),
-                                    Text(methods[i].$3, style: AppTheme.sans(11, color: AppColors.soft)),
-                                  ],
-                                ),
-                              ),
-                              if (_selected == i) const Icon(Icons.check_circle, color: AppColors.matcha),
-                            ],
-                          ),
-                        ),
+                    _methodCard(
+                      emoji: '💵',
+                      title: 'Cash on Arrival',
+                      subtitle: 'Pay your provider directly when they arrive or you arrive',
+                      selected: _method == 'cash',
+                      onTap: () => setState(() => _method = 'cash'),
+                    ),
+                    if (walletBal > 0 || _method == 'wallet') ...[
+                      const SizedBox(height: 10),
+                      _methodCard(
+                        emoji: '👛',
+                        title: 'Khade Wallet',
+                        subtitle: canPayWallet
+                            ? 'Pay instantly from your balance · ${formatNaira(walletBal)}'
+                            : 'Insufficient balance · Top up ${formatNaira(shortfall)} more',
+                        selected: _method == 'wallet',
+                        enabled: canPayWallet,
+                        trailing: canPayWallet ? formatNaira(walletBal) : null,
+                        onTap: canPayWallet ? () => setState(() => _method = 'wallet') : null,
+                        extra: !canPayWallet
+                            ? TextButton(
+                                onPressed: () => _topUpShortfall(shortfall),
+                                child: Text('Top up ${formatNaira(shortfall)} →', style: AppTheme.sans(11, color: AppColors.matcha)),
+                              )
+                            : null,
                       ),
+                    ],
                     const SizedBox(height: 20),
                     PrimaryButton(
-                      label: _paying ? 'Processing...' : 'Pay ${formatNaira(_total)} →',
+                      label: _paying
+                          ? 'Processing...'
+                          : _method == 'cash'
+                              ? 'Confirm Booking →'
+                              : 'Pay ${formatNaira(_total)} from Wallet →',
                       onPressed: _paying ? () {} : _pay,
                     ),
                   ],
@@ -230,6 +203,55 @@ class _PaymentScreenState extends State<PaymentScreen> {
           ),
         );
       },
+    );
+  }
+
+  Widget _methodCard({
+    required String emoji,
+    required String title,
+    required String subtitle,
+    required bool selected,
+    required VoidCallback? onTap,
+    bool enabled = true,
+    String? trailing,
+    Widget? extra,
+  }) {
+    return Opacity(
+      opacity: enabled ? 1 : 0.55,
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: selected ? AppColors.matchaPale : AppColors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: selected ? AppColors.matcha : AppColors.border),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Text(emoji, style: const TextStyle(fontSize: 22)),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(title, style: AppTheme.sans(13, weight: FontWeight.w600)),
+                        Text(subtitle, style: AppTheme.sans(11, color: AppColors.soft)),
+                      ],
+                    ),
+                  ),
+                  if (trailing != null) Text(trailing, style: AppTheme.sans(12, color: AppColors.matcha, weight: FontWeight.w600)),
+                  if (selected) const Padding(padding: EdgeInsets.only(left: 8), child: Icon(Icons.check_circle, color: AppColors.matcha)),
+                ],
+              ),
+              if (extra != null) extra,
+            ],
+          ),
+        ),
+      ),
     );
   }
 

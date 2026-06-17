@@ -4,12 +4,13 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import '../config/api_config.dart';
 import '../models/models.dart';
+import '../constants/khade_categories.dart';
 import '../utils/geo_utils.dart';
 import 'khade_api.dart';
 import 'location_service.dart';
 import 'location_prefs.dart';
 import 'auth_service.dart';
-import 'realtime_sync_service.dart';
+import 'supabase_realtime_service.dart';
 
 /// Central store: embedded backend seed data + live API sync.
 class KhadeRepository extends ChangeNotifier {
@@ -21,9 +22,15 @@ class KhadeRepository extends ChangeNotifier {
   List<ProviderModel> providers = [];
   List<FeedPostModel> feed = [];
   List<BookingModel> bookings = [];
+  List<BookingModel> providerBookings = [];
+  List<ProviderClientModel> providerClients = [];
+  Map<String, dynamic> providerAvailability = {};
   List<NotificationModel> notifications = [];
   List<WalletTransactionModel> walletTransactions = [];
   List<ReviewModel> reviews = [];
+  List<ProviderModel> recentlyViewed = [];
+  List<ConversationModel> conversations = [];
+  int unreadMessagesCount = 0;
   final Set<int> savedProviderIds = {};
   final Set<int> savedPostIds = {};
   final Set<int> likedPostIds = {};
@@ -42,6 +49,7 @@ class KhadeRepository extends ChangeNotifier {
 
   bool isLoading = true;
   bool isLive = false;
+  String databaseMode = 'offline';
   String? lastError;
   String apiUrl = ApiConfig.baseUrl;
   Map<String, dynamic> adminStats = {};
@@ -49,8 +57,91 @@ class KhadeRepository extends ChangeNotifier {
 
   int get unreadNotificationCount => notifications.where((n) => !n.read).length;
 
+  Future<void> loadConversations() async {
+    try {
+      if (isLive && AuthService.instance.isLoggedIn) {
+        final list = await khadeApi.getConversations();
+        conversations = list;
+        unreadMessagesCount = list.fold(0, (sum, c) => sum + c.unread);
+      } else {
+        conversations = bookings
+            .where((b) => b.status != 'cancelled')
+            .map((b) => ConversationModel(
+                  bookingId: b.id,
+                  providerName: b.providerName,
+                  providerEmoji: b.providerEmoji,
+                  customerName: b.customerName,
+                  lastMessage: '${b.serviceName} · ${b.status}',
+                  updatedAt: b.scheduledAt.split('T').first,
+                  unread: 0,
+                ))
+            .toList();
+        unreadMessagesCount = 0;
+      }
+      notifyListeners();
+    } catch (_) {}
+  }
+
+  Future<void> loadProviderData() async {
+    final auth = AuthService.instance.authUser;
+    if (auth?.isProvider != true) return;
+    final pid = auth!.providerId;
+    try {
+      if (isLive) {
+        providerBookings = await khadeApi.getProviderBookings();
+        providerClients = await khadeApi.getProviderClients();
+        final me = await khadeApi.getProviderMe();
+        providerAvailability = Map<String, dynamic>.from(me['availability'] as Map? ?? {});
+        if (pid != null) {
+          bookings = [
+            ...bookings.where((b) => b.providerId != pid),
+            ...providerBookings,
+          ];
+        }
+      } else if (pid != null) {
+        providerBookings = bookingsForProvider(pid);
+        providerClients = _deriveClients(providerBookings);
+      }
+      notifyListeners();
+    } catch (_) {}
+  }
+
+  List<ProviderClientModel> _deriveClients(List<BookingModel> appts) {
+    final byUser = <int, ProviderClientModel>{};
+    for (final b in appts.where((x) => x.status != 'cancelled')) {
+      final uid = b.userId ?? 0;
+      final existing = byUser[uid];
+      if (existing == null) {
+        byUser[uid] = ProviderClientModel(
+          userId: uid,
+          name: b.customerName ?? 'Client',
+          phone: b.customerPhone,
+          bookingCount: 1,
+          lifetimeValue: b.status == 'completed' ? b.totalAmount : 0,
+          lastBookingAt: b.scheduledAt,
+          upcomingCount: b.status == 'upcoming' ? 1 : 0,
+        );
+      } else {
+        byUser[uid] = ProviderClientModel(
+          userId: uid,
+          name: existing.name,
+          phone: existing.phone ?? b.customerPhone,
+          bookingCount: existing.bookingCount + 1,
+          lifetimeValue: existing.lifetimeValue + (b.status == 'completed' ? b.totalAmount : 0),
+          lastBookingAt: b.scheduledAt.compareTo(existing.lastBookingAt) > 0 ? b.scheduledAt : existing.lastBookingAt,
+          upcomingCount: existing.upcomingCount + (b.status == 'upcoming' ? 1 : 0),
+        );
+      }
+    }
+    final list = byUser.values.toList()
+      ..sort((a, b) => b.lastBookingAt.compareTo(a.lastBookingAt));
+    return list;
+  }
+
   List<BookingModel> bookingsForProvider(int providerId) =>
-      bookings.where((b) => b.providerId == providerId).toList();
+      (providerBookings.isNotEmpty && AuthService.instance.authUser?.providerId == providerId)
+          ? providerBookings
+          : bookings.where((b) => b.providerId == providerId).toList();
 
   List<FeedPostModel> feedForProvider(int providerId) =>
       feed.where((p) => p.providerId == providerId).toList();
@@ -172,56 +263,47 @@ class KhadeRepository extends ChangeNotifier {
   void _startNotificationPolling() {
     _notificationTimer?.cancel();
     if (!isLive) return;
+    if (SupabaseRealtimeService.instance.isReady) return;
     _notificationTimer = Timer.periodic(const Duration(seconds: 10), (_) => refreshNotifications());
-    RealtimeSyncService.instance.start();
+  }
+
+  Future<void> _startRealtime() async {
+    if (!isLive || !SupabaseRealtimeService.instance.isReady) {
+      _startNotificationPolling();
+      return;
+    }
+    _stopNotificationPolling();
+    await SupabaseRealtimeService.instance.start(
+      userId: _activeUserId,
+      onNotifications: refreshNotifications,
+      onMessages: loadConversations,
+      onWallet: _onWalletRealtime,
+    );
+  }
+
+  Future<void> _onWalletRealtime() async {
+    await refreshWalletTransactions();
+    if (!AuthService.instance.isLoggedIn) return;
+    try {
+      final u = await khadeApi.getMe();
+      user = u;
+      AuthService.instance.updateUser(u);
+      notifyListeners();
+    } catch (_) {}
+  }
+
+  Future<void> _stopRealtime() async {
+    await SupabaseRealtimeService.instance.stop();
   }
 
   void _stopNotificationPolling() {
     _notificationTimer?.cancel();
     _notificationTimer = null;
-    RealtimeSyncService.instance.stop();
   }
 
-  /// Apply live sync snapshot (wallet, notifications, feed).
-  void applySyncSnapshot(SyncSnapshot snap) {
-    if (user != null) {
-      user = UserModel(
-        id: user!.id,
-        name: user!.name,
-        city: user!.city,
-        tier: user!.tier,
-        walletBalance: snap.walletBalance,
-        bookingsCount: user!.bookingsCount,
-        savedProviders: user!.savedProviders,
-        memberSince: user!.memberSince,
-        role: user!.role,
-        providerId: user!.providerId,
-      );
-    }
-    if (snap.notifications.isNotEmpty) {
-      final existingIds = notifications.map((n) => n.id).toSet();
-      for (final n in snap.notifications) {
-        if (!existingIds.contains(n.id)) notifications.insert(0, n);
-      }
-      notifications.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-    }
-    if (snap.walletTransactions.isNotEmpty) {
-      final existingIds = walletTransactions.map((t) => t.id).toSet();
-      for (final t in snap.walletTransactions) {
-        if (!existingIds.contains(t.id)) walletTransactions.insert(0, t);
-      }
-    }
-    if (snap.feedPosts.isNotEmpty) {
-      for (final post in snap.feedPosts) {
-        final idx = feed.indexWhere((f) => f.id == post.id);
-        if (idx >= 0) {
-          feed[idx] = post;
-        } else {
-          feed.insert(0, post);
-        }
-      }
-    }
-    notifyListeners();
+  Future<void> disposeRealtime() async {
+    _stopNotificationPolling();
+    await _stopRealtime();
   }
 
   bool isProviderSaved(int id) => savedProviderIds.contains(id);
@@ -318,6 +400,15 @@ class KhadeRepository extends ChangeNotifier {
     }
     list = list.where((p) => p.priceFrom >= filters.minPrice && p.priceFrom <= filters.maxPrice).toList();
     if (filters.verifiedOnly) list = list.where((p) => p.verified).toList();
+    if (filters.soloProOnly) {
+      list = list.where((p) => p.providerSubtype == 'solo_pro').toList();
+    } else if (filters.mobileOnly || filters.venueType == 'mobile') {
+      list = list.where((p) => p.providerType == 'mobile' || p.providerType == 'both').toList();
+    } else if (filters.venueType == 'salon') {
+      list = list.where((p) => p.providerType == 'salon' || p.providerType == 'both').toList();
+    } else if (filters.venueType == 'both') {
+      list = list.where((p) => p.providerType == 'both').toList();
+    }
 
     final withDist = list.map(_withDistance).toList().where((p) => p.distanceKm <= filters.maxDistance).toList();
 
@@ -331,6 +422,38 @@ class KhadeRepository extends ChangeNotifier {
       }
     });
     return withDist;
+  }
+
+  List<FeedPostModel> get photoFeed => feed.where((p) => !p.isVideo).toList();
+
+  List<FeedPostModel> get videoFeed => feed.where((p) => p.isVideo).toList();
+
+  List<FeedPostModel> feedForYou({Set<String>? interestedCategories}) {
+    final followed = savedProviderIds;
+    final cats = interestedCategories ?? recentlyViewed.map((p) => p.category).toSet();
+    final posts = photoFeed.map((p) {
+      var score = 0.0;
+      if (followed.contains(p.providerId)) score += 100;
+      if (cats.contains(p.category)) score += 50;
+      score += (p.likes / 10).clamp(0, 20);
+      return (post: p, score: score);
+    }).toList();
+    posts.sort((a, b) => b.score.compareTo(a.score));
+    return posts.map((e) => e.post).toList();
+  }
+
+  List<FeedPostModel> feedFollowing() =>
+      photoFeed.where((p) => savedProviderIds.contains(p.providerId)).toList();
+
+  List<FeedPostModel> feedTrending() {
+    final sorted = [...photoFeed];
+    sorted.sort((a, b) => (b.likes + b.comments * 2).compareTo(a.likes + a.comments * 2));
+    return sorted;
+  }
+
+  List<ProviderModel> storyProviders() {
+    final ids = photoFeed.map((p) => p.providerId).toSet();
+    return providers.where((p) => ids.contains(p.id) && savedProviderIds.contains(p.id)).take(12).toList();
   }
 
   void toggleLikePost(int id) {
@@ -485,10 +608,26 @@ class KhadeRepository extends ChangeNotifier {
 
   List<ProviderModel> get featured => featuredNearYou;
 
+  /// Fixed v3 category list — All first.
+  List<CategoryModel> get displayCategories => KhadeCategories.home;
+
+  int categoryIndexForSlug(String? slug, {String? label}) {
+    final cats = displayCategories;
+    if (slug != null && slug.isNotEmpty) {
+      final i = cats.indexWhere((c) => c.slug == slug);
+      if (i >= 0) return i;
+    }
+    if (label != null && label.isNotEmpty) {
+      final i = cats.indexWhere((c) => c.label == label);
+      if (i >= 0) return i;
+    }
+    return 0;
+  }
+
   List<ProviderModel> byCategory(String? label) {
     if (label == null || label == 'All') return providers;
     CategoryModel? cat;
-    for (final c in categories) {
+    for (final c in displayCategories) {
       if (c.label == label) {
         cat = c;
         break;
@@ -496,7 +635,81 @@ class KhadeRepository extends ChangeNotifier {
     }
     final filter = cat?.filter ?? label.toLowerCase();
     if (filter.isEmpty) return providers;
-    return providers.where((p) => p.category.toLowerCase().contains(filter)).toList();
+    return providers.where((p) =>
+      p.category.toLowerCase().contains(filter) ||
+      p.name.toLowerCase().contains(filter),
+    ).toList();
+  }
+
+  String get _userArea => locationLabel.split(',').first.trim();
+
+  List<ProviderModel> recommendedProviders({String? categoryLabel}) {
+    var list = byCategory(categoryLabel).where((p) => p.featured || p.rating >= 4.5).toList();
+    if (list.isEmpty) list = byCategory(categoryLabel);
+    final area = _userArea.toLowerCase();
+    list.sort((a, b) {
+      final aArea = a.area.toLowerCase().contains(area) ? 1 : 0;
+      final bArea = b.area.toLowerCase().contains(area) ? 1 : 0;
+      if (bArea != aArea) return bArea.compareTo(aArea);
+      return b.rating.compareTo(a.rating);
+    });
+    return list.map(_withDistance).toList();
+  }
+
+  List<ProviderModel> nearbyProviders({String? categoryLabel, int limit = 8}) {
+    final area = _userArea.toLowerCase();
+    var list = byCategory(categoryLabel);
+    list = list.where((p) =>
+      p.area.toLowerCase().contains(area) || p.distanceKm <= 5,
+    ).toList();
+    list.sort((a, b) => a.distanceKm.compareTo(b.distanceKm));
+    return list.take(limit).map(_withDistance).toList();
+  }
+
+  Future<void> loadRecentlyViewed() async {
+    if (!isLive) return;
+    try {
+      recentlyViewed = await khadeApi.getRecentlyViewed(
+        userId: _activeUserId,
+        lat: userLat,
+        lng: userLng,
+      );
+      notifyListeners();
+    } catch (_) {}
+  }
+
+  Future<ProviderModel?> fetchProviderDetail(int id) async {
+    if (isLive) {
+      try {
+        final detail = await khadeApi.getProviderDetail(id);
+        await recordProviderView(id);
+        return detail;
+      } catch (_) {}
+    }
+    return providerById(id);
+  }
+
+  Future<void> recordProviderView(int providerId) async {
+    if (isLive) {
+      try {
+        await khadeApi.recordProviderView(providerId, userId: _activeUserId);
+      } catch (_) {}
+    }
+    final p = providerById(providerId);
+    if (p != null) {
+      recentlyViewed.removeWhere((x) => x.id == providerId);
+      recentlyViewed.insert(0, p);
+      if (recentlyViewed.length > 10) recentlyViewed.removeLast();
+      notifyListeners();
+    }
+  }
+
+  Future<void> refreshWalletTransactions() async {
+    if (!isLive) return;
+    try {
+      walletTransactions = await khadeApi.getWalletTransactions(userId: _activeUserId);
+      notifyListeners();
+    } catch (_) {}
   }
 
   ProviderModel? providerById(int id) {
@@ -556,6 +769,10 @@ class KhadeRepository extends ChangeNotifier {
   Future<void> refresh() async {
     await updateUserLocation();
     await _syncFromApi();
+    if (AuthService.instance.authUser?.isProvider == true) {
+      await loadProviderData();
+    }
+    await loadConversations();
   }
 
   Future<void> _loadEmbedded() async {
@@ -572,6 +789,7 @@ class KhadeRepository extends ChangeNotifier {
     try {
       final ok = await khadeApi.healthCheck();
       if (!ok) throw Exception('Cannot reach $apiUrl');
+      databaseMode = await khadeApi.getDatabaseMode();
       final bootstrap = await khadeApi.getBootstrap(userId: _activeUserId, lat: userLat, lng: userLng);
       _applyBootstrap(bootstrap);
       if (AuthService.instance.authUser != null) {
@@ -589,12 +807,17 @@ class KhadeRepository extends ChangeNotifier {
       }
       isLive = true;
       lastError = null;
-      _startNotificationPolling();
+      await _startRealtime();
       await refreshNotifications();
+      if (AuthService.instance.authUser?.isProvider == true) {
+        await loadProviderData();
+      }
+      await loadConversations();
     } catch (e) {
       isLive = false;
       lastError = e.toString();
-      _stopNotificationPolling();
+      databaseMode = 'offline';
+      await disposeRealtime();
       _computeAdminStats();
     }
     notifyListeners();
@@ -661,14 +884,7 @@ class KhadeRepository extends ChangeNotifier {
   }
 
   void _defaultCategories() {
-    categories = [
-      const CategoryModel(id: 1, slug: 'all', label: 'All', emoji: '💆'),
-      const CategoryModel(id: 2, slug: 'barbing', label: 'Barbing', emoji: '✂️', filter: 'barb'),
-      const CategoryModel(id: 3, slug: 'nails', label: 'Nails', emoji: '💅', filter: 'nail'),
-      const CategoryModel(id: 4, slug: 'makeup', label: 'Makeup', emoji: '💄', filter: 'makeup'),
-      const CategoryModel(id: 5, slug: 'spa', label: 'Spa', emoji: '🧖', filter: 'spa'),
-      const CategoryModel(id: 6, slug: 'hair', label: 'Hair', emoji: '💇', filter: 'hair'),
-    ];
+    categories = KhadeCategories.home;
   }
 
   Future<CreateBookingResult?> completePaymentAndBook({
@@ -711,6 +927,7 @@ class KhadeRepository extends ChangeNotifier {
           destLat: locationType == 'home' ? userLat : null,
           destLng: locationType == 'home' ? userLng : null,
           paymentMethod: paymentMethod,
+          totalAmount: totalAmount,
           note: note,
         );
         await _syncFromApi();
@@ -758,15 +975,16 @@ class KhadeRepository extends ChangeNotifier {
     }
   }
 
-  Future<bool> topUpWallet(int amount) async {
+  Future<bool> topUpWallet(int amount, {String? paystackReference}) async {
     try {
       if (isLive) {
-        final newBal = await khadeApi.topUpWallet(amount: amount);
+        final newBal = await khadeApi.topUpWallet(amount: amount, paystackReference: paystackReference);
         user = UserModel(
           id: user!.id, name: user!.name, city: user!.city, tier: user!.tier,
           walletBalance: newBal, bookingsCount: user!.bookingsCount,
           savedProviders: user!.savedProviders, memberSince: user!.memberSince,
         );
+        await refreshWalletTransactions();
         await refreshNotifications();
       } else {
         _creditWalletLocal(amount, 'Wallet top-up via Paystack');

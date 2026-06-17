@@ -17,14 +17,23 @@
     "seed:providers": "node scripts/seed-24-providers.js && node scripts/import-real-providers.js && node scripts/seed-feed-content.js",
     "bundle:data": "node scripts/bundle-deploy-data.js",
     "migrate:supabase": "node scripts/migrate-to-supabase.js",
-    "setup:production": "node scripts/setup-production.js"
+    "supabase:status": "node scripts/supabase-status.js",
+    "supabase:migrate": "node scripts/supabase-migrate.js",
+    "supabase:sync": "node scripts/supabase-migrate.js && node scripts/migrate-to-supabase.js",
+    "supabase:setup": "node scripts/supabase-setup.js",
+    "supabase:seed-app": "node scripts/supabase-seed-app-data.js",
+    "supabase:storage": "node scripts/supabase-ensure-storage.js",
+    "supabase:phase7": "node scripts/supabase-ensure-phase7.js",
+    "launch:check": "node scripts/launch-check.js",
+    "launch:setup": "node scripts/supabase-launch.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.108.2",
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.5",
     "express": "^4.21.2",
-    "jsonwebtoken": "^9.0.3"
+    "jsonwebtoken": "^9.0.3",
+    "pg": "^8.16.3"
   },
   "engines": {
     "node": ">=18"

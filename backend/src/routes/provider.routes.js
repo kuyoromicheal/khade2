@@ -2,6 +2,7 @@ const express = require('express');
 const { load, save, nextId } = require('../database');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const { DEFAULT_SLOTS } = require('./auth.routes');
+const { resolveBankAccount } = require('../paystack');
 
 const router = express.Router();
 
@@ -103,8 +104,43 @@ router.post('/onboard', requireAuth, requireRole('provider'), async (req, res) =
     provider.price_from = Math.min(...services.map((s) => Number(s.price) || 5000));
   }
 
-  await save(data);
+  await save(data, ['providers', 'services', '_counters']);
   res.json({ data: { success: true, providerId: provider.id, status: provider.status } });
+});
+
+router.post('/bank/resolve', requireAuth, requireRole('provider'), async (req, res) => {
+  const { accountNumber, bankCode } = req.body;
+  if (!accountNumber || !bankCode) {
+    return res.status(400).json({ error: 'accountNumber and bankCode required' });
+  }
+  try {
+    const result = await resolveBankAccount(accountNumber, bankCode);
+    res.json({ data: result });
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
+router.patch('/bank', requireAuth, requireRole('provider'), async (req, res) => {
+  const data = await load();
+  const provider = providerForUser(data, req.user);
+  if (!provider) return res.status(404).json({ error: 'Provider not found' });
+
+  const { bankCode, bankName, accountNumber, accountName } = req.body;
+  if (bankCode) provider.bank_code = bankCode;
+  if (bankName) provider.bank_name = bankName;
+  if (accountNumber) provider.bank_account_number = accountNumber;
+  if (accountName) provider.bank_account_name = accountName;
+
+  await save(data, ['providers']);
+  res.json({
+    data: {
+      bankCode: provider.bank_code,
+      bankName: provider.bank_name,
+      accountNumber: provider.bank_account_number,
+      accountName: provider.bank_account_name,
+    },
+  });
 });
 
 router.patch('/availability', requireAuth, requireRole('provider'), async (req, res) => {
@@ -113,7 +149,7 @@ router.patch('/availability', requireAuth, requireRole('provider'), async (req, 
   if (!provider) return res.status(404).json({ error: 'Provider not found' });
 
   provider.availability = { ...(provider.availability || DEFAULT_SLOTS), ...req.body };
-  await save(data);
+  await save(data, ['providers']);
   res.json({ data: provider.availability });
 });
 
@@ -238,7 +274,7 @@ router.post('/payouts', requireAuth, requireRole('provider'), async (req, res) =
   };
   data.payouts.push(payout);
   provider.earnings_balance = balance - amt;
-  await save(data);
+  await save(data, ['payouts', 'providers', '_counters']);
   res.status(201).json({ data: payout });
 });
 
@@ -317,7 +353,7 @@ router.patch('/bookings/:id/status', requireAuth, requireRole('provider', 'admin
     }
   }
 
-  await save(data);
+  await save(data, ['bookings', 'providers', 'platform_revenue', 'wallet_transactions', 'notifications', 'users', '_counters']);
   res.json({ data: { id: booking.id, status: booking.status } });
 });
 
@@ -342,7 +378,7 @@ router.post('/posts', requireAuth, requireRole('provider'), async (req, res) => 
     created_at: new Date().toISOString(),
   };
   data.feed_posts.unshift(post);
-  await save(data);
+  await save(data, ['feed_posts', '_counters']);
   res.status(201).json({ data: post });
 });
 

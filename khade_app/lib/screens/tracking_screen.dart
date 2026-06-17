@@ -119,18 +119,6 @@ class _TrackingScreenState extends State<TrackingScreen> {
               Text('Choose how to reach your provider', style: AppTheme.sans(12, color: AppColors.soft)),
               const SizedBox(height: 16),
               _ContactOption(
-                icon: Icons.forum_outlined,
-                iconColor: AppColors.matchaDeep,
-                title: 'In-app chat',
-                subtitle: 'Message inside Khade for this booking',
-                onTap: () {
-                  Navigator.pop(ctx);
-                  final id = _bookingId;
-                  if (id != null) context.push('/chat?bookingId=$id&title=${Uri.encodeComponent('Chat with $providerName')}');
-                },
-              ),
-              const SizedBox(height: 10),
-              _ContactOption(
                 icon: Icons.chat,
                 iconColor: const Color(0xFF25D366),
                 title: 'WhatsApp',

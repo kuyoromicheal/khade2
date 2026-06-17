@@ -13,7 +13,26 @@ const TABLE_MAP = {
   wallet_transactions: 'khade_wallet_transactions',
   reviews: 'khade_reviews',
   messages: 'khade_messages',
+  payouts: 'khade_payouts',
+  platform_revenue: 'khade_platform_revenue',
 };
+
+/** Save order respects foreign keys */
+const SAVE_ORDER = [
+  'categories',
+  'providers',
+  'users',
+  'services',
+  'bookings',
+  'feed_posts',
+  'feed_comments',
+  'notifications',
+  'wallet_transactions',
+  'reviews',
+  'messages',
+  'payouts',
+  'platform_revenue',
+];
 
 const TABLES = Object.keys(TABLE_MAP);
 const COUNTERS_TABLE = 'khade_counters';
@@ -29,6 +48,9 @@ const empty = {
   notifications: [],
   wallet_transactions: [],
   reviews: [],
+  messages: [],
+  payouts: [],
+  platform_revenue: [],
   _counters: {},
 };
 
@@ -55,10 +77,13 @@ async function load() {
   return data;
 }
 
-async function save(data) {
+async function save(data, onlyTables = null) {
   const client = getClient();
+  const keys = onlyTables
+    ? SAVE_ORDER.filter((k) => onlyTables.includes(k))
+    : SAVE_ORDER;
 
-  for (const key of TABLES) {
+  for (const key of keys) {
     const rows = data[key];
     if (!rows || rows.length === 0) continue;
     const table = TABLE_MAP[key];
@@ -66,13 +91,15 @@ async function save(data) {
     if (error) throw new Error(`Supabase save ${table}: ${error.message}`);
   }
 
-  const counters = Object.entries(data._counters || {}).map(([table_name, value]) => ({
-    table_name,
-    value,
-  }));
-  if (counters.length > 0) {
-    const { error } = await client.from(COUNTERS_TABLE).upsert(counters, { onConflict: 'table_name' });
-    if (error) throw new Error(`Supabase save counters: ${error.message}`);
+  if (!onlyTables || onlyTables.includes('_counters')) {
+    const counters = Object.entries(data._counters || {}).map(([table_name, value]) => ({
+      table_name,
+      value,
+    }));
+    if (counters.length > 0) {
+      const { error } = await client.from(COUNTERS_TABLE).upsert(counters, { onConflict: 'table_name' });
+      if (error) throw new Error(`Supabase save counters: ${error.message}`);
+    }
   }
 }
 
@@ -88,4 +115,5 @@ module.exports = {
   nextId: (data, table) => Promise.resolve(nextId(data, table)),
   TABLE_MAP,
   COUNTERS_TABLE,
+  SAVE_ORDER,
 };

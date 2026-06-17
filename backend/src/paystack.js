@@ -20,7 +20,7 @@ async function paystackRequest(path, options = {}) {
   return body;
 }
 
-async function initializeTransaction({ email, amountNaira, reference, callbackUrl }) {
+async function initializeTransaction({ email, amountNaira, reference, callbackUrl, metadata = {} }) {
   const body = await paystackRequest('/transaction/initialize', {
     method: 'POST',
     body: JSON.stringify({
@@ -29,6 +29,7 @@ async function initializeTransaction({ email, amountNaira, reference, callbackUr
       reference,
       callback_url: callbackUrl,
       currency: 'NGN',
+      metadata,
       channels: ['card', 'bank', 'ussd', 'qr', 'mobile_money', 'bank_transfer'],
     }),
   });
@@ -50,4 +51,44 @@ async function verifyTransaction(reference) {
   };
 }
 
-module.exports = { initializeTransaction, verifyTransaction, hasPaystackSecret: () => !!PAYSTACK_SECRET };
+async function listBanks() {
+  const body = await paystackRequest('/bank?currency=NGN');
+  return (body.data || []).map((b) => ({
+    code: b.code,
+    name: b.name,
+    slug: b.slug,
+  }));
+}
+
+async function resolveBankAccount(accountNumber, bankCode) {
+  const res = await fetch(
+    `${PAYSTACK_BASE}/bank/resolve?account_number=${encodeURIComponent(accountNumber)}&bank_code=${encodeURIComponent(bankCode)}`,
+    { headers: { Authorization: `Bearer ${PAYSTACK_SECRET}` } },
+  );
+  const json = await res.json();
+  if (!res.ok || !json.status) throw new Error(json.message || 'Could not resolve account');
+  return { accountName: json.data.account_name, accountNumber: json.data.account_number };
+}
+
+async function createTransfer({ amountNaira, recipientCode, reason, reference }) {
+  const body = await paystackRequest('/transfer', {
+    method: 'POST',
+    body: JSON.stringify({
+      source: 'balance',
+      amount: Math.round(amountNaira * 100),
+      recipient: recipientCode,
+      reason: reason || 'Khade provider payout',
+      reference,
+    }),
+  });
+  return body.data;
+}
+
+module.exports = {
+  initializeTransaction,
+  verifyTransaction,
+  listBanks,
+  resolveBankAccount,
+  createTransfer,
+  hasPaystackSecret: () => !!PAYSTACK_SECRET,
+};

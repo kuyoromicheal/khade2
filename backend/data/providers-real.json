@@ -723,5 +723,62 @@
         "price": 35000
       }
     ]
+  },
+  {
+    "name": "PearlSmile Dental Aesthetics",
+    "category_slug": "dental",
+    "area": "Wuse II",
+    "bio": "Premium cosmetic dental care — teeth whitening, veneers, cleaning",
+    "provider_type": "salon",
+    "price_from": 5000,
+    "rating": 4.8,
+    "review_count": 47,
+    "verified": true,
+    "featured": true,
+    "badge": "✓ Verified",
+    "services": [
+      {"name": "Teeth Whitening", "duration": "60 mins", "price": 45000},
+      {"name": "Scale & Polish", "duration": "45 mins", "price": 15000},
+      {"name": "Dental Consultation", "duration": "30 mins", "price": 5000}
+    ]
+  },
+  {
+    "name": "Glam Lash Studio",
+    "category_slug": "brows_lashes",
+    "area": "Maitama",
+    "provider_type": "both",
+    "travel_radius_km": 10,
+    "price_from": 8000,
+    "rating": 4.9,
+    "review_count": 89,
+    "verified": true,
+    "featured": true,
+    "badge": "🔥 Popular",
+    "services": [
+      {"name": "Classic Lash Set", "duration": "90 mins", "price": 12000},
+      {"name": "Volume Lashes", "duration": "120 mins", "price": 18000},
+      {"name": "Brow Lamination", "duration": "60 mins", "price": 8000}
+    ]
+  },
+  {
+    "name": "Adaora Facial Studio",
+    "category_slug": "facials",
+    "area": "Garki",
+    "provider_type": "mobile",
+    "travel_radius_km": 15,
+    "travel_fee_per_km": 0,
+    "min_travel_fee": 0,
+    "base_area": "Garki",
+    "price_from": 12000,
+    "rating": 4.7,
+    "review_count": 63,
+    "verified": false,
+    "featured": false,
+    "badge": "🚗 Mobile",
+    "services": [
+      {"name": "Hydrafacial", "duration": "75 mins", "price": 35000},
+      {"name": "Chemical Peel", "duration": "60 mins", "price": 25000},
+      {"name": "Basic Facial", "duration": "45 mins", "price": 12000}
+    ]
   }
 ]

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../constants/category_icons.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_theme.dart';
 import 'khade_image.dart';
@@ -109,6 +110,7 @@ class CategoryChip extends StatelessWidget {
     super.key,
     required this.emoji,
     required this.label,
+    this.slug,
     this.imageUrl,
     this.active = false,
     this.onTap,
@@ -116,37 +118,54 @@ class CategoryChip extends StatelessWidget {
 
   final String emoji;
   final String label;
+  final String? slug;
   final String? imageUrl;
   final bool active;
   final VoidCallback? onTap;
 
+  static const _matcha = CategoryIcons.matcha;
+
   @override
   Widget build(BuildContext context) {
+    final icon = slug != null ? CategoryIcons.forSlug(slug!) : null;
     return GestureDetector(
       onTap: onTap,
       child: SizedBox(
-        width: 64,
+        width: 70,
         child: Column(
           children: [
             Container(
-              width: 58,
-              height: 58,
+              width: 60,
+              height: 60,
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: active ? AppColors.matcha : AppColors.border, width: active ? 2 : 1),
-                boxShadow: active ? [BoxShadow(color: AppColors.matcha.withValues(alpha: 0.25), blurRadius: 8)] : null,
+                color: active ? _matcha : AppColors.white,
+                border: Border.all(color: active ? _matcha : AppColors.border, width: active ? 2 : 1),
+                boxShadow: active ? [BoxShadow(color: _matcha.withValues(alpha: 0.25), blurRadius: 8)] : null,
               ),
               clipBehavior: Clip.antiAlias,
               child: imageUrl != null && imageUrl!.isNotEmpty
-                  ? KhadeImage(url: imageUrl, fallbackUrl: imageUrl, emojiSize: 22)
-                  : KhadeImage(fallbackUrl: imageUrl, emojiSize: 22),
+                  ? KhadeImage(url: imageUrl, fallbackUrl: imageUrl, emoji: emoji, emojiSize: 22)
+                  : icon != null
+                      ? Icon(icon, size: 26, color: active ? Colors.white : _matcha)
+                      : Container(
+                          decoration: const BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [AppColors.matchaPale, Color(0xFFD4E6D8)],
+                            ),
+                          ),
+                          alignment: Alignment.center,
+                          child: Text(emoji, style: const TextStyle(fontSize: 24)),
+                        ),
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 6),
             Text(
               label,
-              maxLines: 1,
+              maxLines: 2,
               overflow: TextOverflow.ellipsis,
-              style: AppTheme.sans(10, color: active ? AppColors.matcha : AppColors.mid, weight: active ? FontWeight.w500 : FontWeight.w400),
+              style: AppTheme.sans(10, color: active ? _matcha : AppColors.mid, weight: active ? FontWeight.w500 : FontWeight.w400),
               textAlign: TextAlign.center,
             ),
           ],

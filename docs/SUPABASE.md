@@ -4,6 +4,28 @@ Connect your Khade API to a persistent Supabase PostgreSQL database. Bookings, r
 
 ---
 
+## Cursor ↔ Supabase (automated)
+
+1. **MCP is configured** in `.cursor/mcp.json` for project `lqfzutfhhshditpewedt`
+2. Open **Cursor Settings → Tools & MCP** → enable **supabase** → restart Cursor
+3. Log in via browser when prompted (one-time OAuth)
+4. From now on, ask Cursor: *"Run supabase:status"* or *"Apply phase2-full.sql via MCP"*
+
+Cursor rule: `.cursor/rules/supabase-automation.mdc` (always on for this repo)
+
+---
+
+## NPM automation (from `backend/`)
+
+```powershell
+npm run supabase:status    # check all khade_* tables
+npm run supabase:migrate   # apply SQL files (needs SUPABASE_DB_URL)
+npm run supabase:sync      # migrate + seed data
+npm run supabase:setup     # full pipeline
+```
+
+---
+
 ## 1. Create tables in Supabase
 
 1. Open [Supabase Dashboard](https://supabase.com/dashboard) → your project
