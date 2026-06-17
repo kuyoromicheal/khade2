@@ -54,7 +54,7 @@ router.get('/providers', async (_req, res) => {
 
 router.patch('/providers/:id/status', async (req, res) => {
   const { status } = req.body;
-  const allowed = ['active', 'under_review', 'suspended', 'inactive'];
+  const allowed = ['active', 'suspended', 'inactive'];
   if (!allowed.includes(status)) return res.status(400).json({ error: 'Invalid status' });
 
   const data = await load();

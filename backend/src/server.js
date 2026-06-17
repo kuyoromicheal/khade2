@@ -19,7 +19,6 @@ if (fs.existsSync(envPath)) {
 const express = require('express');
 const cors = require('cors');
 const api = require('./routes/api');
-const webhooks = require('./routes/webhooks.routes');
 const { registerMediaRoutes } = require('./media-proxy');
 const { load, isSupabase, save } = require('./database');
 
@@ -42,20 +41,6 @@ async function start() {
   const PORT = process.env.PORT || 3001;
 
   app.use(cors());
-
-  /** Paystack webhooks need raw JSON body for signature verification */
-  app.use('/api/webhooks', express.raw({ type: 'application/json' }), (req, _res, next) => {
-    if (Buffer.isBuffer(req.body)) {
-      try {
-        req.rawBody = req.body;
-        req.body = JSON.parse(req.body.toString('utf8'));
-      } catch (_) {
-        req.body = {};
-      }
-    }
-    next();
-  }, webhooks);
-
   app.use(express.json());
 
   app.get('/health', (_req, res) =>

@@ -72,16 +72,13 @@ async function ensureDemoAccounts(data) {
 router.post('/register', async (req, res) => {
   const {
     email, password, name, role = 'customer', city = 'Abuja', phone,
-    businessName, cacNumber, visitTypes = 'both', area = 'Wuse II',
+    businessName, visitTypes = 'both', area = 'Wuse II',
   } = req.body;
   if (!email || !password || !name) {
     return res.status(400).json({ error: 'email, password, and name are required' });
   }
   if (!['customer', 'provider'].includes(role)) {
     return res.status(400).json({ error: 'role must be customer or provider' });
-  }
-  if (role === 'provider' && !cacNumber) {
-    return res.status(400).json({ error: 'CAC registration number is required for providers' });
   }
   if (password.length < 6) {
     return res.status(400).json({ error: 'Password must be at least 6 characters' });
@@ -120,10 +117,9 @@ router.post('/register', async (req, res) => {
     user.provider_id = providerId;
     data.providers.push({
       id: providerId,
-      status: 'under_review',
+      status: 'active',
       name: businessName || `${name.split(' ')[0]} Studio`,
       business_name: businessName || null,
-      cac_number: cacNumber || null,
       category: 'Beauty',
       category_slug: 'makeup',
       emoji: '💄',

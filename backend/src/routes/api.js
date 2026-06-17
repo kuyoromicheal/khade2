@@ -1,7 +1,19 @@
 const express = require('express');
 const { load, save, nextId } = require('../database');
 const { initializeTransaction, verifyTransaction, hasPaystackSecret } = require('../paystack');
-const { optionalAuth } = require('../middleware/auth');
+const { optionalAuth, requireAuth } = require('../middleware/auth');
+const { cashbackRate, tierLabel } = require('../tier');
+const { isConfigured, getClient } = require('../supabase-client');
+
+const DEFAULT_OPENING_HOURS = {
+  monday: { open: '09:00', close: '19:00' },
+  tuesday: { open: '09:00', close: '19:00' },
+  wednesday: { open: '09:00', close: '19:00' },
+  thursday: { open: '09:00', close: '20:00' },
+  friday: { open: '09:00', close: '20:00' },
+  saturday: { open: '08:00', close: '21:00' },
+  sunday: null,
+};
 
 const router = express.Router();
 router.use(optionalAuth);
@@ -9,13 +21,10 @@ router.use(optionalAuth);
 const authRoutes = require('./auth.routes');
 const providerRoutes = require('./provider.routes');
 const adminRoutes = require('./admin.routes');
-const phase2Routes = require('./phase2.routes');
-const { ensureCollections } = require('../collections');
 
 router.use('/auth', authRoutes.router);
 router.use('/provider', providerRoutes);
 router.use('/admin', adminRoutes);
-router.use('/', phase2Routes);
 
 function wrapAsync(handler) {
   return (req, res, next) => Promise.resolve(handler(req, res, next)).catch(next);
@@ -28,6 +37,7 @@ function wrapAsync(handler) {
 });
 
 function mapProvider(row) {
+  const photos = row.photos?.length ? row.photos : (row.image_url ? [row.image_url] : []);
   return {
     id: row.id,
     name: row.name,
@@ -40,9 +50,10 @@ function mapProvider(row) {
     latitude: row.latitude,
     longitude: row.longitude,
     area: row.area,
+    locationArea: row.location_area || row.area,
     priceFrom: row.price_from,
     badge: row.badge,
-    verified: !!row.verified,
+    verified: !!(row.is_verified || row.verified),
     featured: !!row.featured,
     gradientStart: row.gradient_start,
     gradientEnd: row.gradient_end,
@@ -50,6 +61,23 @@ function mapProvider(row) {
     avatarUrl: row.avatar_url,
     phone: row.phone || null,
     status: row.status,
+    bio: row.bio || '',
+    openingHours: row.opening_hours || DEFAULT_OPENING_HOURS,
+    instantConfirm: row.instant_confirm !== false,
+    doesHomeVisits: row.does_home_visits !== false && row.visit_types !== 'salon',
+    hasSalon: !!row.has_salon || row.visit_types === 'salon' || row.visit_types === 'both',
+    acceptsGroups: row.accepts_groups !== false,
+    isCertified: !!row.is_certified,
+    hasTeam: !!row.has_team,
+    photos,
+    providerType: row.provider_type || (row.visit_types === 'salon' ? 'salon' : row.visit_types === 'both' ? 'both' : 'mobile'),
+    travelRadiusKm: row.travel_radius_km ?? 10,
+    travelFeePerKm: Number(row.travel_fee_per_km ?? 0),
+    minTravelFee: Number(row.min_travel_fee ?? 0),
+    baseArea: row.base_area || row.area || null,
+    providerSubtype: row.provider_subtype || 'solo_pro',
+    workLocations: row.work_locations || [],
+    coverageAreas: row.coverage_areas?.length ? row.coverage_areas : (row.base_area ? [row.base_area] : [row.area]),
   };
 }
 
@@ -285,18 +313,107 @@ router.get('/providers', async (req, res) => {
   res.json({ data: mapped });
 });
 
+router.get('/providers/recently-viewed', async (req, res) => {
+  const userId = req.user?.id || Number(req.query.userId || 0);
+  if (!userId) return res.json({ data: [] });
+
+  const data = await load();
+  let viewRows = [];
+
+  if (isConfigured()) {
+    const client = getClient();
+    const { data: rows } = await client
+      .from('khade_provider_views')
+      .select('provider_id, viewed_at')
+      .eq('user_id', userId)
+      .order('viewed_at', { ascending: false })
+      .limit(10);
+    viewRows = rows || [];
+  } else {
+    viewRows = (data.provider_views || [])
+      .filter(v => v.user_id === userId)
+      .sort((a, b) => new Date(b.viewed_at) - new Date(a.viewed_at))
+      .slice(0, 10);
+  }
+
+  const userLat = req.query.lat ? Number(req.query.lat) : null;
+  const userLng = req.query.lng ? Number(req.query.lng) : null;
+
+  const providers = viewRows
+    .map(v => {
+      const row = data.providers.find(p => p.id === v.provider_id && p.status === 'active');
+      if (!row) return null;
+      const p = mapProvider(row);
+      if (userLat != null && userLng != null && row.latitude != null && row.longitude != null) {
+        p.distanceKm = +haversineKm(userLat, userLng, row.latitude, row.longitude).toFixed(1);
+      }
+      return p;
+    })
+    .filter(Boolean);
+
+  res.json({ data: providers });
+});
+
 router.get('/providers/:id', async (req, res) => {
   const data = await load();
   const row = data.providers.find(p => p.id === Number(req.params.id));
   if (!row) return res.status(404).json({ error: 'Provider not found' });
 
   const services = data.services.filter(s => s.provider_id === row.id);
+  const reviews = (data.reviews || []).filter(r => r.provider_id === row.id);
+  const staff = (data.staff || []).filter(s => s.provider_id === row.id && s.active !== 0);
+  const branches = (data.provider_branches || []).filter(b => b.provider_id === row.id);
+
   res.json({
     data: {
       ...mapProvider(row),
       services: services.map(s => ({ id: s.id, name: s.name, duration: s.duration, price: s.price })),
+      reviews: reviews.map(r => ({
+        id: r.id,
+        rating: r.rating,
+        comment: r.comment,
+        authorName: r.author_name,
+        createdAt: r.created_at,
+      })),
+      team: staff.map(s => ({
+        id: s.id,
+        name: s.name,
+        role: s.role || 'Specialist',
+        rating: s.rating || 5,
+        avatarUrl: s.avatar_url,
+      })),
+      branches: branches.map(b => ({
+        id: b.id,
+        branchName: b.branch_name,
+        address: b.address,
+        lat: b.lat,
+        lng: b.lng,
+        isPrimary: !!b.is_primary,
+      })),
     },
   });
+});
+
+router.post('/providers/:id/view', async (req, res) => {
+  const providerId = Number(req.params.id);
+  const userId = req.user?.id || Number(req.body.userId || req.query.userId || 0);
+  if (!userId) return res.status(400).json({ error: 'userId required' });
+
+  if (isConfigured()) {
+    const client = getClient();
+    await client.from('khade_provider_views').upsert(
+      { user_id: userId, provider_id: providerId, viewed_at: new Date().toISOString() },
+      { onConflict: 'user_id,provider_id' },
+    );
+  } else {
+    const data = await load();
+    data.provider_views = data.provider_views || [];
+    const existing = data.provider_views.find(v => v.user_id === userId && v.provider_id === providerId);
+    if (existing) existing.viewed_at = new Date().toISOString();
+    else data.provider_views.push({ user_id: userId, provider_id: providerId, viewed_at: new Date().toISOString() });
+    await save(data);
+  }
+  res.json({ data: { success: true } });
 });
 
 router.get('/users/:id', async (req, res) => {
@@ -349,7 +466,7 @@ router.get('/bookings', async (req, res) => {
 
 router.post('/bookings', async (req, res) => {
   const data = await load();
-  const { userId = 1, providerId, serviceId, locationType = 'home', address, scheduledAt, paymentMethod = 'paystack', destLat, destLng, note } = req.body;
+  const { userId = 1, providerId, serviceId, locationType = 'home', address, scheduledAt, paymentMethod = 'cash', destLat, destLng, note, totalAmount } = req.body;
   if (!providerId || !serviceId || !scheduledAt) {
     return res.status(400).json({ error: 'providerId, serviceId, and scheduledAt are required' });
   }
@@ -357,10 +474,13 @@ router.post('/bookings', async (req, res) => {
   const service = data.services.find(s => s.id === Number(serviceId) && s.provider_id === Number(providerId));
   if (!service) return res.status(404).json({ error: 'Service not found' });
 
-  const fee = Math.round(service.price * 0.1);
-  const total = service.price + fee;
+  const fee = totalAmount != null
+    ? Math.max(0, Number(totalAmount) - service.price)
+    : Math.round(service.price * 0.1);
+  const total = totalAmount != null ? Number(totalAmount) : service.price + fee;
   const code = `KHD-${Math.floor(1000 + Math.random() * 9000)}`;
   const id = await nextId(data, 'bookings');
+  const payMethod = (paymentMethod || 'cash').toLowerCase();
 
   data.bookings.push({
     id,
@@ -375,7 +495,8 @@ router.post('/bookings', async (req, res) => {
     scheduled_at: scheduledAt,
     total_amount: total,
     booking_code: code,
-    payment_method: paymentMethod,
+    payment_method: payMethod,
+    payment_status: payMethod === 'cash' ? 'pending' : 'paid',
     note: note || null,
     created_at: new Date().toISOString(),
   });
@@ -459,7 +580,7 @@ router.post('/feed/:id/comments', async (req, res) => {
 });
 
 router.get('/tracking/:bookingId', async (req, res) => {
-  const data = ensureCollections(await load());
+  const data = await load();
   const booking = data.bookings.find(b => b.id === Number(req.params.bookingId));
   if (!booking) return res.status(404).json({ error: 'Booking not found' });
   const provider = data.providers.find(p => p.id === booking.provider_id);
@@ -477,27 +598,13 @@ router.get('/tracking/:bookingId', async (req, res) => {
   }
   const startLat = provider?.latitude ?? destLat;
   const startLng = provider?.longitude ?? destLng;
-
-  const liveLoc = data.provider_locations?.find((l) => l.provider_id === booking.provider_id);
-  const locAge = liveLoc?.updated_at ? Date.now() - new Date(liveLoc.updated_at).getTime() : Infinity;
-  const useLiveGps = liveLoc && locAge < 120000;
-
-  let curLat;
-  let curLng;
-  if (useLiveGps) {
-    curLat = Number(liveLoc.lat);
-    curLng = Number(liveLoc.lng);
-  } else {
-    const elapsed = (Date.now() % 600000) / 600000;
-    const progress = Math.min(0.92, 0.15 + elapsed * 0.75);
-    curLat = startLat + (destLat - startLat) * progress;
-    curLng = startLng + (destLng - startLng) * progress;
-  }
-
-  const totalKm = haversineKm(useLiveGps ? curLat : startLat, useLiveGps ? curLng : startLng, destLat, destLng);
-  const remainKm = +totalKm.toFixed(1);
+  const elapsed = (Date.now() % 600000) / 600000;
+  const progress = Math.min(0.92, 0.15 + elapsed * 0.75);
+  const curLat = startLat + (destLat - startLat) * progress;
+  const curLng = startLng + (destLng - startLng) * progress;
+  const totalKm = haversineKm(startLat, startLng, destLat, destLng);
+  const remainKm = +(totalKm * (1 - progress)).toFixed(1);
   const etaMinutes = Math.max(1, Math.round(remainKm * 4));
-  const progress = useLiveGps ? Math.min(0.95, 1 - remainKm / Math.max(totalKm, 0.1)) : Math.min(0.92, 0.15 + ((Date.now() % 600000) / 600000) * 0.75);
   const step = progress < 0.25 ? 1 : progress < 0.5 ? 2 : progress < 0.8 ? 3 : 4;
 
   res.json({
@@ -512,7 +619,6 @@ router.get('/tracking/:bookingId', async (req, res) => {
       distanceKm: remainKm,
       etaMinutes,
       progressStep: step,
-      liveGps: useLiveGps,
       providerName: provider?.name,
       providerAvatarUrl: provider?.avatar_url,
       providerPhone: provider?.phone || null,
@@ -559,8 +665,13 @@ router.patch('/notifications/:id/read', async (req, res) => {
 
 router.get('/wallet/transactions', async (req, res) => {
   const data = await load();
-  const userId = Number(req.query.userId || 1);
-  const rows = (data.wallet_transactions || []).filter(t => t.user_id === userId);
+  const userId = req.user?.id || Number(req.query.userId || 1);
+  const limit = Math.min(Number(req.query.limit) || 50, 100);
+  const offset = Number(req.query.offset) || 0;
+  const rows = (data.wallet_transactions || [])
+    .filter(t => t.user_id === userId)
+    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+    .slice(offset, offset + limit);
   res.json({
     data: rows.map(t => ({
       id: t.id,
@@ -568,31 +679,50 @@ router.get('/wallet/transactions', async (req, res) => {
       amount: t.amount,
       description: t.description,
       reference: t.reference,
+      status: t.status || 'completed',
       createdAt: t.created_at,
     })),
+    meta: { userId, cashbackRate: Math.round(cashbackRate(data.users.find(u => u.id === userId)?.tier) * 100) },
   });
 });
 
 router.post('/wallet/topup', async (req, res) => {
   const data = await load();
-  const { userId = 1, amount } = req.body;
-  const user = data.users.find(u => u.id === Number(userId));
+  const userId = req.user?.id || Number(req.body.userId || 1);
+  const user = data.users.find(u => u.id === userId);
   if (!user) return res.status(404).json({ error: 'User not found' });
+
+  const { amount, paystackReference } = req.body;
   const amt = Number(amount) || 10000;
-  user.wallet_balance += amt;
+
+  if (paystackReference) {
+    const existing = (data.wallet_transactions || []).find(t => t.reference === paystackReference);
+    if (existing) {
+      return res.json({ data: { success: true, newBalance: user.wallet_balance, amount: existing.amount, duplicate: true } });
+    }
+    if (hasPaystackSecret()) {
+      const verified = await verifyTransaction(paystackReference);
+      if (verified.status !== 'success') {
+        return res.status(400).json({ error: 'Paystack payment not verified' });
+      }
+    }
+  }
+
+  user.wallet_balance = (user.wallet_balance || 0) + amt;
   const txId = await nextId(data, 'wallet_transactions');
   data.wallet_transactions = data.wallet_transactions || [];
   data.wallet_transactions.push({
     id: txId,
-    user_id: Number(userId),
+    user_id: userId,
     type: 'credit',
     amount: amt,
-    description: 'Wallet top-up',
-    reference: `TOPUP_${Date.now()}`,
+    description: 'Wallet top-up via Paystack',
+    reference: paystackReference || `TOPUP_${Date.now()}`,
+    status: 'completed',
     created_at: new Date().toISOString(),
   });
   await pushNotification(data, {
-    userId: Number(userId),
+    userId,
     title: 'Wallet Topped Up',
     body: `₦${amt.toLocaleString()} added to your Khade wallet`,
     emoji: '💰',
@@ -643,7 +773,7 @@ router.get('/admin/stats', async (_req, res) => {
 });
 
 router.post('/payments/initialize', async (req, res) => {
-  const { amount, email = 'adaeze@example.com', bookingId, userId, purpose = 'booking' } = req.body;
+  const { amount, email = 'adaeze@example.com', bookingId } = req.body;
   const reference = `KHADE_${Date.now()}_${bookingId || 'bk'}`;
   const callbackBase = process.env.PAYSTACK_CALLBACK_BASE || `http://localhost:${process.env.PORT || 3001}`;
   const callbackUrl = `${callbackBase}/paystack/callback`;
@@ -656,20 +786,6 @@ router.post('/payments/initialize', async (req, res) => {
         reference,
         callbackUrl,
       });
-
-      const data = ensureCollections(await load());
-      data.pending_payments.push({
-        id: await nextId(data, 'pending_payments'),
-        reference: result.reference,
-        user_id: userId ? Number(userId) : null,
-        amount: Number(amount) || 13200,
-        purpose,
-        booking_meta: bookingId ? { bookingId: Number(bookingId) } : null,
-        status: 'pending',
-        created_at: new Date().toISOString(),
-      });
-      await save(data);
-
       return res.json({
         data: {
           authorizationUrl: result.authorizationUrl,
@@ -808,6 +924,139 @@ router.post('/bookings/:id/cancel', async (req, res) => {
   });
   await save(data);
   res.json({ data: { id, status: 'cancelled' } });
+});
+
+router.get('/messages/conversations', requireAuth, async (req, res) => {
+  const data = await load();
+  const user = req.user;
+  const msgs = data.messages || [];
+
+  if (user.role === 'provider' && user.provider_id) {
+    const providerBookings = data.bookings.filter(
+      (b) => b.provider_id === user.provider_id && b.status !== 'cancelled',
+    );
+    const convos = providerBookings.map((b) => {
+      const customer = data.users.find((u) => u.id === b.user_id);
+      const service = data.services.find((s) => s.id === b.service_id);
+      const thread = msgs
+        .filter((m) => m.booking_id === b.id)
+        .sort((a, c) => new Date(c.created_at) - new Date(a.created_at));
+      const last = thread[0];
+      const customerName = customer?.name ?? 'Client';
+      return {
+        bookingId: b.id,
+        customerName,
+        customerEmoji: '👤',
+        providerName: customerName,
+        providerEmoji: '👤',
+        lastMessage: last?.body ?? `${service?.name ?? 'Booking'} · ${b.status}`,
+        updatedAt: (last?.created_at ?? b.scheduled_at ?? '').toString().slice(0, 10),
+        unread: 0,
+      };
+    });
+    convos.sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''));
+    return res.json({ data: convos });
+  }
+
+  const userId = Number(req.query.userId || user.id || 1);
+  const userBookings = data.bookings.filter((b) => b.user_id === userId && b.status !== 'cancelled');
+  const convos = userBookings.map((b) => {
+    const provider = data.providers.find((p) => p.id === b.provider_id);
+    const service = data.services.find((s) => s.id === b.service_id);
+    const thread = msgs
+      .filter((m) => m.booking_id === b.id)
+      .sort((a, c) => new Date(c.created_at) - new Date(a.created_at));
+    const last = thread[0];
+    return {
+      bookingId: b.id,
+      providerName: provider?.name ?? 'Provider',
+      providerEmoji: provider?.emoji ?? '💄',
+      lastMessage: last?.body ?? `${service?.name ?? 'Booking'} · ${b.status}`,
+      updatedAt: (last?.created_at ?? b.scheduled_at ?? '').toString().slice(0, 10),
+      unread: 0,
+    };
+  });
+  convos.sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''));
+  res.json({ data: convos });
+});
+
+function canAccessBooking(booking, user) {
+  if (!booking || !user) return false;
+  if (user.role === 'admin') return true;
+  if (user.role === 'provider' && booking.provider_id === user.provider_id) return true;
+  if (booking.user_id === user.id) return true;
+  return false;
+}
+
+router.get('/messages/:bookingId', requireAuth, async (req, res) => {
+  const data = await load();
+  const bookingId = Number(req.params.bookingId);
+  const booking = data.bookings.find((b) => b.id === bookingId);
+  if (!booking) return res.status(404).json({ error: 'Booking not found' });
+  if (!canAccessBooking(booking, req.user)) return res.status(403).json({ error: 'Forbidden' });
+
+  const msgs = (data.messages || [])
+    .filter((m) => m.booking_id === bookingId)
+    .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+
+  res.json({
+    data: msgs.map((m) => ({
+      id: m.id,
+      bookingId: m.booking_id,
+      senderId: m.sender_id,
+      senderName: m.sender_name,
+      body: m.body,
+      createdAt: m.created_at,
+      isMine: m.sender_id === req.user.id,
+    })),
+  });
+});
+
+router.post('/messages', requireAuth, async (req, res) => {
+  const { bookingId, body } = req.body;
+  if (!bookingId || !body?.trim()) {
+    return res.status(400).json({ error: 'bookingId and body are required' });
+  }
+
+  const data = await load();
+  const booking = data.bookings.find((b) => b.id === Number(bookingId));
+  if (!booking) return res.status(404).json({ error: 'Booking not found' });
+  if (!canAccessBooking(booking, req.user)) return res.status(403).json({ error: 'Forbidden' });
+
+  data.messages = data.messages || [];
+  const msg = {
+    id: await nextId(data, 'messages'),
+    booking_id: Number(bookingId),
+    sender_id: req.user.id,
+    sender_name: req.user.name,
+    body: body.trim(),
+    created_at: new Date().toISOString(),
+  };
+  data.messages.push(msg);
+
+  const provider = data.providers.find((p) => p.id === booking.provider_id);
+  const notifyUserId = req.user.role === 'provider' ? booking.user_id : provider?.owner_user_id;
+  if (notifyUserId) {
+    await pushNotification(data, {
+      userId: notifyUserId,
+      title: `Message from ${req.user.name}`,
+      body: body.trim().slice(0, 80),
+      emoji: '💬',
+    });
+  }
+
+  await save(data);
+  res.status(201).json({
+    data: {
+      id: msg.id,
+      bookingId: msg.booking_id,
+      senderId: msg.sender_id,
+      senderName: msg.sender_name,
+      body: msg.body,
+      createdAt: msg.created_at,
+      isMine: true,
+    },
+  });
 });
 
 module.exports = router;
