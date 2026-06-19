@@ -35,6 +35,8 @@ const SAVE_ORDER = [
 ];
 
 const TABLES = Object.keys(TABLE_MAP);
+/** Auth routes only need these tables — avoids loading bookings, feed, etc. */
+const AUTH_TABLES = ['users', 'providers', 'wallet_transactions', 'notifications'];
 const COUNTERS_TABLE = 'khade_counters';
 
 const empty = {
@@ -60,6 +62,59 @@ async function load() {
 
   await Promise.all(
     TABLES.map(async (key) => {
+      const table = TABLE_MAP[key];
+      const { data: rows, error } = await client.from(table).select('*');
+      if (error) throw new Error(`Supabase load ${table}: ${error.message}`);
+      data[key] = rows || [];
+    }),
+  );
+
+  const { data: counterRows, error: counterErr } = await client.from(COUNTERS_TABLE).select('*');
+  if (counterErr) throw new Error(`Supabase load counters: ${counterErr.message}`);
+  data._counters = {};
+  for (const row of counterRows || []) {
+    data._counters[row.table_name] = row.value;
+  }
+
+  syncCountersFromData(data);
+
+  return data;
+}
+
+/** Login only needs users + id counters. */
+const LOGIN_TABLES = ['users'];
+
+async function loadLogin() {
+  const client = getClient();
+  const data = structuredClone(empty);
+
+  await Promise.all(
+    LOGIN_TABLES.map(async (key) => {
+      const table = TABLE_MAP[key];
+      const { data: rows, error } = await client.from(table).select('*');
+      if (error) throw new Error(`Supabase load ${table}: ${error.message}`);
+      data[key] = rows || [];
+    }),
+  );
+
+  const { data: counterRows, error: counterErr } = await client.from(COUNTERS_TABLE).select('*');
+  if (counterErr) throw new Error(`Supabase load counters: ${counterErr.message}`);
+  data._counters = {};
+  for (const row of counterRows || []) {
+    data._counters[row.table_name] = row.value;
+  }
+
+  syncCountersFromData(data);
+
+  return data;
+}
+
+async function loadAuth() {
+  const client = getClient();
+  const data = structuredClone(empty);
+
+  await Promise.all(
+    AUTH_TABLES.map(async (key) => {
       const table = TABLE_MAP[key];
       const { data: rows, error } = await client.from(table).select('*');
       if (error) throw new Error(`Supabase load ${table}: ${error.message}`);
@@ -134,9 +189,12 @@ function nextId(data, table) {
 module.exports = {
   mode: 'supabase',
   load,
+  loadAuth,
+  loadLogin,
   save,
   nextId: (data, table) => Promise.resolve(nextId(data, table)),
   TABLE_MAP,
   COUNTERS_TABLE,
   SAVE_ORDER,
+  AUTH_TABLES,
 };

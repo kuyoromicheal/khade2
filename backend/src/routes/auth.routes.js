@@ -1,5 +1,5 @@
 const express = require('express');
-const { load, save, nextId } = require('../database');
+const { loadAuth, loadLogin, save, nextId } = require('../database');
 const { hashPassword, verifyPassword, signToken, mapAuthUser } = require('../auth');
 const { requireAuth } = require('../middleware/auth');
 
@@ -91,8 +91,7 @@ router.post('/register', async (req, res) => {
     return res.status(400).json({ error: 'Password must be at least 6 characters' });
   }
 
-  const data = await load();
-  await ensureDemoAccounts(data);
+  const data = await loadAuth();
 
   if (data.users.some((u) => u.email?.toLowerCase() === email.toLowerCase())) {
     return res.status(409).json({ error: 'Email already registered' });
@@ -208,9 +207,7 @@ router.post('/login', async (req, res) => {
     return res.status(400).json({ error: 'email and password required' });
   }
 
-  const data = await load();
-  const changed = await ensureDemoAccounts(data);
-  if (changed.length) await save(data, [...changed, '_counters']);
+  const data = await loadLogin();
 
   const user = data.users.find((u) => u.email?.toLowerCase() === email.toLowerCase());
   if (!user || !(await verifyPassword(password, user.password_hash))) {
@@ -226,9 +223,7 @@ router.get('/me', requireAuth, async (req, res) => {
 });
 
 router.post('/guest', async (_req, res) => {
-  const data = await load();
-  const changed = await ensureDemoAccounts(data);
-  if (changed.length) await save(data, [...changed, '_counters']);
+  const data = await loadAuth();
   const guest = data.users.find((u) => u.id === 1) || data.users[0];
   if (!guest) return res.status(404).json({ error: 'No guest user' });
   res.json({ data: { user: mapAuthUser(guest), guest: true } });
