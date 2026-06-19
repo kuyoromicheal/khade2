@@ -182,13 +182,13 @@ router.post('/register', async (req, res) => {
     });
   }
 
-  await save(data, ['providers', 'users', 'wallet_transactions', 'notifications']);
+  await save(data, ['providers', 'users', 'wallet_transactions', 'notifications', '_counters']);
 
   if (role === 'provider' && user.provider_id) {
     const provider = data.providers.find((p) => p.id === user.provider_id);
     if (provider) {
       provider.owner_user_id = id;
-      await save(data, ['providers']);
+      await save(data, ['providers', '_counters']);
     }
   }
 

@@ -74,6 +74,8 @@ async function load() {
     data._counters[row.table_name] = row.value;
   }
 
+  syncCountersFromData(data);
+
   return data;
 }
 
@@ -87,7 +89,8 @@ async function save(data, onlyTables = null) {
     const rows = data[key];
     if (!rows || rows.length === 0) continue;
     const table = TABLE_MAP[key];
-    const { error } = await client.from(table).upsert(rows, { onConflict: 'id' });
+    const payload = dedupeRowsById(rows);
+    const { error } = await client.from(table).upsert(payload, { onConflict: 'id' });
     if (error) throw new Error(`Supabase save ${table}: ${error.message}`);
   }
 
@@ -103,9 +106,29 @@ async function save(data, onlyTables = null) {
   }
 }
 
+function syncCountersFromData(data) {
+  for (const key of TABLES) {
+    const rows = data[key];
+    if (!Array.isArray(rows) || rows.length === 0) continue;
+    const maxId = rows.reduce((m, r) => Math.max(m, Number(r.id) || 0), 0);
+    data._counters[key] = Math.max(data._counters[key] || 0, maxId);
+  }
+}
+
+function dedupeRowsById(rows) {
+  const byId = new Map();
+  for (const row of rows) {
+    if (row?.id != null) byId.set(row.id, row);
+  }
+  return [...byId.values()];
+}
+
 function nextId(data, table) {
-  data._counters[table] = (data._counters[table] || 0) + 1;
-  return data._counters[table];
+  const rows = data[table] || [];
+  const maxExisting = rows.reduce((m, r) => Math.max(m, Number(r.id) || 0), 0);
+  const next = Math.max(data._counters[table] || 0, maxExisting) + 1;
+  data._counters[table] = next;
+  return next;
 }
 
 module.exports = {
